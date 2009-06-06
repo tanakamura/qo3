@@ -1,0 +1,5 @@
+#!/bin/sh
+sudo mount -o loop hda image
+sudo rm -f image/QO3
+sudo cp -L QO3 image/qo3
+sudo umount image
