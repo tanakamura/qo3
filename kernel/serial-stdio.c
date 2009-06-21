@@ -33,7 +33,7 @@ vprintf(const char *format,
 		return -1;
 	}
 
-	ns16550_write(buffer, out_size);
+	ns16550_write_text(buffer, out_size);
 
 	return out_size;
 }

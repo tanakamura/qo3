@@ -10,9 +10,10 @@
 #include "msr.h"
 #include "apic.h"
 #include "ich7.h"
+#include "intr.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
-#define WRITE_STR(p) ns16550_write(p, SIZEOF_STR(p))
+#define WRITE_STR(p) ns16550_write_text(p, SIZEOF_STR(p))
 
 static int
 serial_gets(char *buffer, int buflen)
@@ -42,35 +43,40 @@ struct command {
 	void (*command_func)(void);
 };
 
+static int
+read_int(void)
+{
+	char digits[16];
+	int val;
+	int len = serial_gets(digits, 15);
+	digits[len] = '\0';
+	val = atoi(digits);
+	return val;
+}
+
 static void
 show_cpuid(void)
 {
-	char digits[16];
-	int len, val, a, b, c, d;
+	int val, a, b, c, d;
 
 	printf("eax?> ");
-	len = serial_gets(digits, 15);
-	digits[len] = '\0';
-	val = atoi(digits);
+	val = read_int();
 
 	cpuid(val, a, b, c, d);
 
-	printf("a=%08x b=%08x c=%08x d=%08x\r\n", a, b, c, d);
+	printf("a=%08x b=%08x c=%08x d=%08x\n", a, b, c, d);
 }
 
 static void
 show_msr(void)
 {
-	char digits[16];
-	int len, val, a, d;
+	int val, a, d;
 	printf("ecx?> ");
-	len = serial_gets(digits, 15);
-	digits[len] = '\0';
-	val = atoi(digits);
+	val = read_int();
 
 	rdmsr(val, a, d);
 
-	printf("a=%08x d=%08x\r\n", a, d);
+	printf("a=%08x d=%08x\n", a, d);
 }
 
 static void
@@ -88,11 +94,11 @@ show_mtrr(void)
 		rdmsrll(IA32_MTRR_PHYSBASE0+i*2, base);
 		rdmsrll(IA32_MTRR_PHYSMASK0+i*2, mask);
 
-		printf("%d: %016llx %016llx\r\n", i, base, mask);
-		printf("%d: base=%08x\r\n", i, ((unsigned int)base)&(0-(1<<12)));
-		printf("%d: mask=%08x\r\n", i, ((unsigned int)mask)&(0-(1<<12)));
-		printf("%d: v=%d\r\n", i, (((unsigned int)mask)&(1<<11))>>11);
-		printf("%d: type=%08x\r\n", i, ((unsigned int)base)&0xff);
+		printf("%d: %016llx %016llx\n", i, base, mask);
+		printf("%d: base=%08x\n", i, ((unsigned int)base)&(0-(1<<12)));
+		printf("%d: mask=%08x\n", i, ((unsigned int)mask)&(0-(1<<12)));
+		printf("%d: v=%d\n", i, (((unsigned int)mask)&(1<<11))>>11);
+		printf("%d: type=%08x\n", i, ((unsigned int)base)&0xff);
 	}
 }
 
@@ -115,6 +121,34 @@ int3(void)
 	__asm__ __volatile__ ("int3");
 }
 
+static void
+do_ltimer(void)
+{
+	int val;
+	write_local_apic(LAPIC_DIVIDE, LAPIC_DIVIDE_1);
+	printf("value?> ");
+	val = read_int();
+	write_local_apic(LAPIC_INITIAL_COUNT, val);
+	write_local_apic(LAPIC_CURRENT_COUNT, val);
+
+	LAPIC_SET_LVT_TIMER(LAPIC_TIMER_MODE_PERIODIC, LAPIC_UNMASK);
+}
+
+static void
+do_rtimer(void)
+{
+	int val = read_local_apic(LAPIC_CURRENT_COUNT);
+	printf("%d\n", val);
+}
+
+static void dump_info(void);
+
+static void
+do_sti(void)
+{
+	__asm__ __volatile__ ("sti");
+}
+
 
 #define NAME_LEN(name) name, sizeof(name)-1
 
@@ -127,6 +161,11 @@ static struct command commands[] = {
 	{NAME_LEN("div0"), div0},
 	{NAME_LEN("int3"), int3},
 	{NAME_LEN("hlt"), do_hlt},
+	{NAME_LEN("ltimer"), do_ltimer},
+	{NAME_LEN("rtimer"), do_rtimer},
+	{NAME_LEN("dump"), dump_info},
+	{NAME_LEN("sti"), do_sti},
+
 };
 
 #define APBOOT_ADDR_4K 0xbd
@@ -139,35 +178,43 @@ ap_main(void)
 	}
 }
 
-void
-cinterrupt_main(void)
-{
-	while (1);
-}
-
 static void
 dump_info(void)
 {
-	unsigned int ioapic_ver, bsp_apic_id, ebda_addr;
+	unsigned int ioapic_ver, bsp_apic_id, ebda_addr, lvt;
 	unsigned long long msr_base;
 
 	/* find apic ver */
 	ich7_write(IOAPIC_INDEX,IOAPIC_VER);
 	ioapic_ver = ich7_read(IOAPIC_DATA);
-	printf("IOAPIC ver. = %08x\r\n", ioapic_ver);
+	printf("IOAPIC ver. = %08x\n", ioapic_ver);
 
-	bsp_apic_id = read_local_apic(LOCAL_APIC_ID);
-	printf("BSP APIC ID. = %08x\r\n", bsp_apic_id);
+	bsp_apic_id = read_local_apic(LAPIC_ID);
+	printf("BSP APIC ID. = %08x\n", bsp_apic_id);
 
 	ebda_addr = *(uint16_t*)0x40e;
 
-	printf("EBDA = %08x\r\n", ebda_addr);
+	printf("EBDA = %08x\n", ebda_addr);
 
 	rdmsrll(IA32_APIC_BASE, msr_base);
 
 	if (msr_base & (1<<11)) {
 		puts("APIC enabled");
 	}
+
+	lvt = read_local_apic(LAPIC_LVT_TIMER);
+	printf("LVT TIMER = %08x\n", lvt);
+	lvt = read_local_apic(LAPIC_LVT_THERMAL);
+	printf("LVT THERMAL = %08x\n", lvt);
+	lvt = read_local_apic(LAPIC_LVT_PMC);
+	printf("LVT PMC = %08x\n", lvt);
+	lvt = read_local_apic(LAPIC_LVT_LINT0);
+	printf("LVT LINT0 = %08x\n", lvt);
+	lvt = read_local_apic(LAPIC_LVT_LINT1);
+	printf("LVT LINT1 = %08x\n", lvt);
+	lvt = read_local_apic(LAPIC_LVT_ERROR);
+	printf("LVT ERROR = %08x\n", lvt);
+
 }
 
 
@@ -193,13 +240,13 @@ int cmain()
 	cpuid(1, ver, bidx, extf, func);
 
 	ns16550_init();
-	WRITE_STR("hello QO3!\r\n");
+	WRITE_STR("hello QO3!\n");
 
 	if (func & (1<<9)) {
-		WRITE_STR("OK:APIC found\r\n");
+		WRITE_STR("OK:APIC found\n");
 		vga_puts("OK:APIC found");
 	} else {
-		WRITE_STR("FAIL:APIC not found. too old cpu\r\n");
+		WRITE_STR("FAIL:APIC not found. too old cpu\n");
 		vga_puts("FAIL:APIC not found. too old cpu");
 		while (1)
 			hlt();
@@ -207,8 +254,9 @@ int cmain()
 
 	dump_info();
 
-	apic_svr = read_local_apic(LOCAL_APIC_SVR);
-	write_local_apic(LOCAL_APIC_SVR, apic_svr | LOCAL_APIC_SVR_APIC_ENABLE);
+	apic_svr = read_local_apic(LAPIC_SVR);
+	/* enable apic */
+	write_local_apic(LAPIC_SVR, apic_svr | LAPIC_SVR_APIC_ENABLE);
 	(void)apic_svr;
 
 	apboot_addr = (unsigned char*)APBOOT_ADDR;
@@ -224,8 +272,13 @@ int cmain()
 			if (len == commands[i].len) {
 				if (memcmp(buffer, commands[i].com, len) == 0) {
 					commands[i].command_func();
+					break;
 				}
 			}
+		}
+
+		if (i == ALEN(commands)) {
+			puts("unknown command");
 		}
 	}
 

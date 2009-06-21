@@ -83,6 +83,29 @@ ns16550_write(const char *buffer, int n)
 }
 
 void
+ns16550_write_text(const char *buffer, int n)
+{
+	int i;
+	for (i=0; i<n; i++) {
+		unsigned char c;
+
+		while (! ((c=inb(PORT+REG_LSR)) & LSR_THR))
+			;
+
+		c = buffer[i];
+		if (c == '\n') {
+			outb(PORT + REG_THR, '\r');
+			while (! ((c=inb(PORT+REG_LSR)) & LSR_THR))
+				;
+		}
+
+		outb(PORT + REG_THR, buffer[i]);
+		wiob();
+	}
+}
+
+
+void
 ns16550_read(char *buffer, int n)
 {
 	int i;
