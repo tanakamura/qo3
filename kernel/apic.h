@@ -71,9 +71,9 @@
 #define LAPIC_DIVIDE_4 1
 #define LAPIC_DIVIDE_8 2
 #define LAPIC_DIVIDE_16 3
-#define LAPIC_DIVIDE_32 4
-#define LAPIC_DIVIDE_64 5
-#define LAPIC_DIVIDE_128 6
-#define LAPIC_DIVIDE_1 7
+#define LAPIC_DIVIDE_32 8
+#define LAPIC_DIVIDE_64 9
+#define LAPIC_DIVIDE_128 10
+#define LAPIC_DIVIDE_1 11
 
 #endif

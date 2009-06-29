@@ -11,6 +11,8 @@
 #include "apic.h"
 #include "ich7.h"
 #include "intr.h"
+#include "hpet.h"
+#include "wait.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text(p, SIZEOF_STR(p))
@@ -149,6 +151,16 @@ do_sti(void)
 	__asm__ __volatile__ ("sti");
 }
 
+static void
+do_waitsec(void)
+{
+	int val;
+	printf("sec?> ");
+	val = read_int();
+	wait_sec(val);
+	puts("ok");
+}
+
 
 #define NAME_LEN(name) name, sizeof(name)-1
 
@@ -165,7 +177,7 @@ static struct command commands[] = {
 	{NAME_LEN("rtimer"), do_rtimer},
 	{NAME_LEN("dump"), dump_info},
 	{NAME_LEN("sti"), do_sti},
-
+	{NAME_LEN("waitsec"), do_waitsec}
 };
 
 #define APBOOT_ADDR_4K 0xbd
@@ -183,6 +195,7 @@ dump_info(void)
 {
 	unsigned int ioapic_ver, bsp_apic_id, ebda_addr, lvt;
 	unsigned long long msr_base;
+	unsigned int hpet_period;
 
 	/* find apic ver */
 	ich7_write(IOAPIC_INDEX,IOAPIC_VER);
@@ -215,6 +228,9 @@ dump_info(void)
 	lvt = read_local_apic(LAPIC_LVT_ERROR);
 	printf("LVT ERROR = %08x\n", lvt);
 
+	hpet_period = ICH7_HPET_READ(HPET_GCAP_HI);
+	printf("hpet period = %d\n", hpet_period);
+	printf("hpet freq .=. %d[Hz]\n", 1000000000/(hpet_period/1000000));
 }
 
 
@@ -228,7 +244,6 @@ int cmain()
 	int ver, bidx, extf, func;
 	unsigned int apic_svr;
 	unsigned char *apboot_addr;
-	
 
 	int i, j;
 	for (i=0; i<25; i++) {
@@ -258,6 +273,8 @@ int cmain()
 	/* enable apic */
 	write_local_apic(LAPIC_SVR, apic_svr | LAPIC_SVR_APIC_ENABLE);
 	(void)apic_svr;
+
+	wait_setup();
 
 	apboot_addr = (unsigned char*)APBOOT_ADDR;
 	apboot_addr[0] = 0xff;

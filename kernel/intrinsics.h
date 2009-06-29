@@ -43,4 +43,7 @@ static inline void outb(unsigned short port, unsigned char val)
 
 #define wiob()
 
+/* force memory access to c compiler */
+#define cbarrier(v) __asm__ __volatile__(""::"r"(v))
+
 #endif
