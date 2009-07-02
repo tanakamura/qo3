@@ -5,7 +5,6 @@
 #include <stdio.h>
 
 static unsigned int hpet_freq_khz;
-static unsigned int hpet_freq_mhz;
 
 void
 wait_setup(void)
@@ -13,7 +12,6 @@ wait_setup(void)
 	unsigned int hpet_period;
 	hpet_period = ICH7_HPET_READ(HPET_GCAP_HI);
 	hpet_freq_khz = 1000000000 / (hpet_period/1000);
-	hpet_freq_mhz = 1000000000 / hpet_period;
 }
 
 static void
