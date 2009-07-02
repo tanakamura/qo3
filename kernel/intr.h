@@ -25,6 +25,8 @@ cgeneral_protection(int edi, int esi, int ebp,int esp,int ebx,int edx,
 
 
 #define INTVEC_LAPIC_TIMER 64
-#define LAPIC_SET_LVT_TIMER(mode,mask) write_local_apic(LAPIC_LVT_TIMER, (mode)|(mask)|((INTVEC_LAPIC_TIMER)))
+#define INTVEC_LAPIC_ERROR 65
 
+#define LAPIC_SET_LVT_TIMER(mode,mask) write_local_apic(LAPIC_LVT_TIMER, (mode)|(mask)|(INTVEC_LAPIC_TIMER))
+#define LAPIC_SET_LVT_ERROR(mask) write_local_apic(LAPIC_LVT_ERROR, (mask)|(INTVEC_LAPIC_ERROR))
 #endif

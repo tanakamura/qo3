@@ -5,23 +5,22 @@
 #include <stdio.h>
 
 static unsigned int hpet_freq_khz;
+static unsigned int hpet_freq_mhz;
 
 void
 wait_setup(void)
 {
 	unsigned int hpet_period;
 	hpet_period = ICH7_HPET_READ(HPET_GCAP_HI);
-	hpet_freq_khz = 1000000000 / (hpet_period / 1000);
+	hpet_freq_khz = 1000000000 / (hpet_period/1000);
+	hpet_freq_mhz = 1000000000 / hpet_period;
 }
 
-void
-wait_msec(unsigned int msec)
+static void
+wait_tick(unsigned int ticks)
 {
-	unsigned int ticks;
-
 	hpet_stop(ICH7_HPET_ADDR_BASE);
 	ICH7_HPET_WRITE(HPET_MAIN_CNT, 0);
-	ticks = msec * hpet_freq_khz;
 	hpet_start(ICH7_HPET_ADDR_BASE);
 
 	while (1) {
@@ -33,4 +32,17 @@ wait_msec(unsigned int msec)
 	}
 
 	hpet_stop(ICH7_HPET_ADDR_BASE);
+}
+
+
+void
+wait_msec(unsigned int msec)
+{
+	wait_tick(msec * hpet_freq_khz);
+}
+
+void
+wait_usec(unsigned int usec)
+{
+	wait_tick((usec * hpet_freq_khz)/1000);
 }

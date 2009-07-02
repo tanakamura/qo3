@@ -6,19 +6,7 @@
 
 	cpu	486
 
-%define SEGDESC_S	(1<<12)
-%define SEGDESC_P	(1<<15)
-%define SEGDESC_AVL	(1<<20)
-%define SEGDESC_DB	(1<<22)
-%define SEGDESC_G	(1<<23)
-
-%define SEGDESC_EXECREAD (0xa<<8)
-%define SEGDESC_READWRITE (0x2<<8)
-
-%define SEGDESC_DPL_SHIFT 13
-%define SEGDESC_LIMIT_SHIFT 16
-%define SEGDESC_BASE_SHIFTL 0
-%define SEGDESC_BASE_SHIFTH 24
+%include	"kernel/gdt.inc"
 
 _start:
 addr100000:	
@@ -108,13 +96,14 @@ idt:
 	idt_entry(machine_check) ; 18
 	idt_entry(simd_float) ; 19
 
-%assign	vec 20	
+%assign	vec 20
 %rep (44)
 	idt_entry(unknown_exception %+ vec) ; 20 - 63 (irq?)
 %assign vec vec+1
 %endrep
 
 	idt_entry(lapic_timer) ; 64 lapic timer
+	idt_entry(lapic_error) ; 65 lapic error
 
 %macro gen_handler 2
 
@@ -141,6 +130,7 @@ idt:
 	gen_handler div_error, cdiv_error
 	gen_handler invalid_opcode, cinvalid_opcode
 	gen_handler lapic_timer, clapic_timer
+	gen_handler lapic_error, clapic_error
 
 	gen_handler_code unknown_exception1, cunknown_exception, 1
 	gen_handler_code unknown_exception7, cunknown_exception, 7
@@ -179,10 +169,6 @@ general_protection:
 
 	SECTION .bss
 stack:	resb	4096
-
-%define	SEGDESC_RW32 (SEGDESC_P|SEGDESC_DB|SEGDESC_G|SEGDESC_S|SEGDESC_READWRITE)
-%define	SEGDESC_EXEC (SEGDESC_P|SEGDESC_DB|SEGDESC_G|SEGDESC_S|SEGDESC_EXECREAD)
-	
 
 	SECTION	.rodata
 	align	16

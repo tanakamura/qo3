@@ -13,6 +13,7 @@
 #include "intr.h"
 #include "hpet.h"
 #include "wait.h"
+#include "smp.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text(p, SIZEOF_STR(p))
@@ -104,10 +105,35 @@ show_mtrr(void)
 	}
 }
 
+extern unsigned char apboot_main16[];
+
 static void
 boot_ap(void)
 {
-	
+	unsigned int addr = APBOOT_ADDR_4K;
+	unsigned char *apboot_addr = (unsigned char*)APBOOT_ADDR;
+
+	memcpy(apboot_addr, apboot_main16, 512);
+	sfence();
+
+	printf("%x\n", 0x000c4600 | addr);
+
+	/* send INIT 
+	 *      0    0    0    c    4    5    0    0
+	 * 0b0000 0000 0000 1100 0100 0101 0000 0000 */
+	write_local_apic(LAPIC_ICR0, 0x000c4500);
+	/* wait 10msec */
+	wait_msec(10);
+	/* send startup 
+	 *      0    0    0    c    4    6    addr 
+	 * 0b0000 0000 0000 1100 0100 0110 xxxx xxxx */
+	write_local_apic(LAPIC_ICR0, 0x000c4600 | addr);
+	/* wait 200usec */
+	wait_usec(200);
+	/* sipi */
+	write_local_apic(LAPIC_ICR0, 0x000c4600 | addr);
+	/* wait 200usec */
+	wait_usec(200);
 }
 
 static void
@@ -157,8 +183,15 @@ do_waitsec(void)
 	int val;
 	printf("sec?> ");
 	val = read_int();
-	wait_sec(val);
+	wait_usec(val*1000000);
 	puts("ok");
+}
+
+static void
+dump_smp_flag(void)
+{
+	int val = APBOOT_ADDR_FLAG;
+	printf("%x\n", val);
 }
 
 
@@ -177,16 +210,17 @@ static struct command commands[] = {
 	{NAME_LEN("rtimer"), do_rtimer},
 	{NAME_LEN("dump"), dump_info},
 	{NAME_LEN("sti"), do_sti},
-	{NAME_LEN("waitsec"), do_waitsec}
+	{NAME_LEN("waitsec"), do_waitsec},
+
+	{NAME_LEN("dump_smp_flag"), dump_smp_flag},
 };
 
-#define APBOOT_ADDR_4K 0xbd
-#define APBOOT_ADDR (APBOOT_ADDR_4K*4096)
-
-static void
-ap_main(void)
+void
+cap_main(void)
 {
+	dump_info();
 	while (1) {
+		hlt();
 	}
 }
 
@@ -230,7 +264,7 @@ dump_info(void)
 
 	hpet_period = ICH7_HPET_READ(HPET_GCAP_HI);
 	printf("hpet period = %d\n", hpet_period);
-	printf("hpet freq .=. %d[Hz]\n", 1000000000/(hpet_period/1000000));
+	printf("hpet freq .=. %d[kHz]\n", 1000000000/(hpet_period/1000));
 }
 
 
@@ -243,7 +277,6 @@ int cmain()
 	char buffer[16];
 	int ver, bidx, extf, func;
 	unsigned int apic_svr;
-	unsigned char *apboot_addr;
 
 	int i, j;
 	for (i=0; i<25; i++) {
@@ -272,15 +305,9 @@ int cmain()
 	apic_svr = read_local_apic(LAPIC_SVR);
 	/* enable apic */
 	write_local_apic(LAPIC_SVR, apic_svr | LAPIC_SVR_APIC_ENABLE);
-	(void)apic_svr;
+	LAPIC_SET_LVT_ERROR(LAPIC_UNMASK);
 
 	wait_setup();
-
-	apboot_addr = (unsigned char*)APBOOT_ADDR;
-	apboot_addr[0] = 0xff;
-	apboot_addr[1] = 0x25;
-	*(int*)(apboot_addr+2) = 6;
-	*(int*)(apboot_addr+6) = (int)ap_main;
 
 	while(1) {
 		int len = serial_gets(buffer, 16);

@@ -4,7 +4,22 @@ void *
 memset(void *p, int c, size_t len)
 {
         char *s = p;
-	while (len) *s++ = c;
+	size_t i;
+	for (i=0; i<len; i++) {
+		s[i] = c;
+	}
+        return p;
+}
+void *
+memcpy(void *p, const void *src, size_t len)
+{
+        char *d = p;
+	const char *s = src;
+	size_t i;
+	for (i=0; i<len; i++) {
+		d[i] = s[i];
+	}
+
         return p;
 }
 

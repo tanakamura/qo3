@@ -39,6 +39,13 @@ clapic_timer(void)
 	write_local_apic(LAPIC_EOI, 0);
 }
 
+void
+clapic_error(void)
+{
+	puts("lapic_error");
+	write_local_apic(LAPIC_EOI, 0);
+}
+
 #define GEN_UNHANDLED(name)			\
 void name(void) {				\
 	puts(#name);				\

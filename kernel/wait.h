@@ -3,6 +3,8 @@
 
 void wait_setup(void);
 void wait_msec(unsigned int msec);
+void wait_usec(unsigned int usec);
+
 #define wait_sec(n) wait_msec((n)*1000)
 
 #endif

@@ -32,7 +32,7 @@ dummy:
 submake:
 	sh readmodule.sh > .submake.mk
 
-.depend: $(ALL_GEN_SOURCES) 
+.depend: # $(ALL_GEN_SOURCES) 
 	touch .depend
 	makedepend $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) -f.depend
 #gcc -MM -I. $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) $^ > $@
