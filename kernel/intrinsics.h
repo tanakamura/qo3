@@ -27,6 +27,7 @@
         __asm__ __volatile__ ("cpuid"                           \
                               :"=a"(ao),"=b"(b),"=c"(c),"=d"(d) \
                               :"a"(a))
+
 static inline unsigned char inb(unsigned short port)
 {
 	unsigned char a;
@@ -45,6 +46,7 @@ static inline void outb(unsigned short port, unsigned char val)
 
 /* force memory access to c compiler */
 #define cbarrier(v) __asm__ __volatile__(""::"r"(v))
+#define lfence() __asm__ __volatile__("lfence":::"memory")
 #define sfence() __asm__ __volatile__("sfence":::"memory")
 
 #endif

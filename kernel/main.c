@@ -112,11 +112,10 @@ boot_ap(void)
 {
 	unsigned int addr = APBOOT_ADDR_4K;
 	unsigned char *apboot_addr = (unsigned char*)APBOOT_ADDR;
+	int i;
 
 	memcpy(apboot_addr, apboot_main16, 512);
 	sfence();
-
-	printf("%x\n", 0x000c4600 | addr);
 
 	/* send INIT 
 	 *      0    0    0    c    4    5    0    0
@@ -134,6 +133,18 @@ boot_ap(void)
 	write_local_apic(LAPIC_ICR0, 0x000c4600 | addr);
 	/* wait 200usec */
 	wait_usec(200);
+
+
+	wait_sec(1);
+	for (i=1; i<NUM_MAX_CPU; i++) {
+		if (smp_table[i].flags & PROCESSOR_ENABLED) {
+			printf("cpu%d is enabled.\n", i);
+		}
+	}
+
+	if (have_too_many_cpus) {
+		puts("have many cpus");
+	}
 }
 
 static void
@@ -183,14 +194,16 @@ do_waitsec(void)
 	int val;
 	printf("sec?> ");
 	val = read_int();
-	wait_usec(val*1000000);
+	wait_sec(val);
 	puts("ok");
 }
 
 static void
 dump_smp_flag(void)
 {
-	int val = APBOOT_ADDR_FLAG;
+	int val;
+	lfence();
+	val = APBOOT_ADDR_FLAG;
 	printf("%x\n", val);
 }
 
@@ -214,15 +227,6 @@ static struct command commands[] = {
 
 	{NAME_LEN("dump_smp_flag"), dump_smp_flag},
 };
-
-void
-cap_main(void)
-{
-	dump_info();
-	while (1) {
-		hlt();
-	}
-}
 
 static void
 dump_info(void)
@@ -268,10 +272,10 @@ dump_info(void)
 }
 
 
-
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
 
-int cmain()
+void
+cmain()
 {
 	char *p = (char*)0xb8000;
 	char buffer[16];
@@ -328,3 +332,23 @@ int cmain()
 
 	while (1);
 }
+
+void
+cap_main(void)
+{
+	unsigned int apic_id, apic_svr;
+	/* enable apic */
+	apic_svr = read_local_apic(LAPIC_SVR);
+	write_local_apic(LAPIC_SVR, apic_svr | LAPIC_SVR_APIC_ENABLE);
+
+	apic_id = read_local_apic(LAPIC_ID);
+	apic_id >>= 24U;
+
+	smp_table[apic_id].flags |= PROCESSOR_ENABLED;
+	sfence();
+
+	while (1) {
+		hlt();
+	}
+}
+

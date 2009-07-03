@@ -11,7 +11,7 @@ wait_setup(void)
 {
 	unsigned int hpet_period;
 	hpet_period = ICH7_HPET_READ(HPET_GCAP_HI);
-	hpet_freq_khz = 1000000000 / (hpet_period/1000);
+	hpet_freq_khz = 1000000000/(hpet_period/1000);
 }
 
 static void

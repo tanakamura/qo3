@@ -2,9 +2,11 @@
 	global	_start
 	global	generic_int
 	extern	cmain
+	extern	cap_main
 	extern	cinterrupt_main
+	extern	ap_stack
 
-	cpu	486
+	cpu	P4
 
 %include	"kernel/gdt.inc"
 
@@ -19,10 +21,11 @@ addr100000:
 	dd -0x1badb002 ; checksum
 
 
-start2:
-	mov	esp, stack+4096
-	mov	eax, 0xb80000
+%define STACK_SIZE 8192
+%define NUM_MAX_CPU 16
 
+start2:
+	mov	esp, stack+STACK_SIZE
 	push	dword 0
 	popf
 
@@ -67,6 +70,46 @@ start3:
 
 	call	cmain
 
+
+
+	; AP routine
+	align	0x100
+ap_start32:
+	push	dword 0
+	popf
+
+	mov	eax, dword [0xfee00000 + 0x0020] ; APIC_ID
+	shr	eax, 24
+	cmp	eax, NUM_MAX_CPU
+	jg	too_many_cpu
+
+	imul	eax, STACK_SIZE
+	add	eax, ap_stack
+	mov	esp, eax
+
+	lgdt	[gdtdesc]
+	mov	eax, 8
+
+	mov	ds, eax
+	mov	es, eax
+	mov	fs, eax
+	mov	gs, eax
+	mov	ss, eax
+
+	jmp	16:ap_start2
+ap_start2:
+	lidt	[idtdesc]
+	sti
+
+	call	cap_main
+
+too_many_cpu:
+	mov	eax, 1
+	mov	[have_too_many_cpus], eax
+	sfence
+too_many_cpu_hlt:
+	hlt
+	jmp	too_many_cpu_hlt
 
 %define	lo(x) (((x)-addr100000))
 %define	hi(x) (0x10)
@@ -165,10 +208,13 @@ general_protection:
 	popad
 	add	esp, 4 ; errcode
 	iretd
-	
 
 	SECTION .bss
-stack:	resb	4096
+stack:
+	resb	STACK_SIZE
+	global	have_too_many_cpus
+have_too_many_cpus:
+	resb	4
 
 	SECTION	.rodata
 	align	16
@@ -191,3 +237,4 @@ gdtdesc:
 idtdesc:
 	dw	8*256-1
 	dd	idt
+
