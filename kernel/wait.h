@@ -1,7 +1,7 @@
 #ifndef QO3_KERNEL_WAIT_H
 #define QO3_KERNEL_WAIT_H
 
-void wait_setup(void);
+void wait_timer_setup(void);
 void wait_msec(unsigned int msec);
 void wait_usec(unsigned int usec);
 

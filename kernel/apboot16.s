@@ -9,7 +9,6 @@
 apboot_main16:
 	mov	ax, 0x4000
 	mov	ds, ax
-	mov	dword [flag], 0xdeadbeef
 
 	mov	eax, cr0
 	or	eax, 1 ; PE
@@ -55,5 +54,3 @@ gdtdesc:
 	align	100h
 start_addr:
 	dd	0
-flag:
-	dd	0xff

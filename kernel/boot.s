@@ -2,7 +2,7 @@
 	global	_start
 	global	generic_int
 	extern	cmain
-	extern	cap_main
+	extern	cAP_main
 	extern	cinterrupt_main
 	extern	ap_stack
 
@@ -11,7 +11,7 @@
 %include	"kernel/gdt.inc"
 
 _start:
-addr100000:	
+addr100000:
 	jmp	start2
 
 	align 4
@@ -101,7 +101,7 @@ ap_start2:
 	lidt	[idtdesc]
 	sti
 
-	call	cap_main
+	call	cAP_main
 
 too_many_cpu:
 	mov	eax, 1

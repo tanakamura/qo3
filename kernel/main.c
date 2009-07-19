@@ -14,6 +14,7 @@
 #include "hpet.h"
 #include "wait.h"
 #include "smp.h"
+#include "acpi.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text(p, SIZEOF_STR(p))
@@ -112,7 +113,6 @@ boot_ap(void)
 {
 	unsigned int addr = APBOOT_ADDR_4K;
 	unsigned char *apboot_addr = (unsigned char*)APBOOT_ADDR;
-	int i;
 
 	memcpy(apboot_addr, apboot_main16, 512);
 	sfence();
@@ -134,13 +134,6 @@ boot_ap(void)
 	/* wait 200usec */
 	wait_usec(200);
 
-
-	wait_sec(1);
-	for (i=1; i<NUM_MAX_CPU; i++) {
-		if (smp_table[i].flags & PROCESSOR_ENABLED) {
-			printf("cpu%d is enabled.\n", i);
-		}
-	}
 
 	if (have_too_many_cpus) {
 		puts("have many cpus");
@@ -199,14 +192,117 @@ do_waitsec(void)
 }
 
 static void
-dump_smp_flag(void)
+do_hpetint(void)
 {
 	int val;
-	lfence();
-	val = APBOOT_ADDR_FLAG;
-	printf("%x\n", val);
+	printf("sec?> ");
+	val = read_int();
 }
 
+static void
+do_acpiapic(void)
+{
+	uintptr_t apic = find_acpi_description_entry(ACPI_SIG('A','P','I','C'));
+	int len;
+	int off;
+
+	if (!apic) {
+		puts("no APIC entry");
+		return;
+	}
+	len = ACPI_R32(apic, 4);
+
+	len -= 44;		/* offset to APIC structure */
+	off = 44;
+
+	while (len > 0) {
+		enum acpi_apic_type_code code = ACPI_R8(apic, off);
+		int str_len = ACPI_R8(apic, off+1);
+
+		switch (code) {
+		case ACPI_PROCESSOR_LOCAL_APIC:
+			puts("local apic");
+			printf(" id = %d\n", ACPI_R8(apic, off + 3));
+			printf(" flags = %08x\n", ACPI_R32(apic, off + 4));
+			break;
+
+		case ACPI_IO_APIC:
+			puts("io apic");
+			printf(" id = %d\n", ACPI_R8(apic, off + 2));
+			printf(" addr = %08x\n", ACPI_R32(apic, off + 4));
+			printf(" global system int base = %08x\n", ACPI_R32(apic, off + 8));
+			break;
+
+		case ACPI_INTERRUPT_SOURCE_OVERRIDE:
+			puts("source override");
+			printf(" bus = %d (maybe 0)\n", ACPI_R8(apic, off+2));
+			printf(" source = %d\n", ACPI_R8(apic, off+3));
+			printf(" global source int = %d\n", ACPI_R32(apic, off+4));
+			printf(" flags = %d\n", ACPI_R16(apic, off+8));
+			break;
+
+		case ACPI_NMI_SOURCE:
+			puts("nmi source");
+			printf(" flags = %x\n", ACPI_R16(apic, off+2));
+			printf(" global system int = %d\n", ACPI_R32(apic, off+4));
+			break;
+
+		case ACPI_LOCAL_APIC_NMI_STRUCTURE:
+			puts("nmi structure");
+			printf(" id = %d\n", ACPI_R8(apic, off+2));
+			printf(" flags = %x\n", ACPI_R16(apic, off+3));
+			printf(" lint = %d\n", ACPI_R8(apic, off+5));
+			break;
+			
+		case ACPI_LOCAL_APIC_ADDRESS_OVERRIDE_STRUCTURE:
+			puts("lapic address over");
+			break;
+
+		case ACPI_IO_SAPIC:
+			puts("io sapic");
+			break;
+
+		case ACPI_LOCAL_SAPIC:
+			puts("local sapic");
+			break;
+
+		case ACPI_PLATFORM_INTERRUPT_SOURCES:
+			puts("platform int source");
+			break;
+
+		default:
+			puts("unknown apic desctiption");
+			break;
+		}
+
+		off += str_len;
+		len -= str_len;
+	}
+}
+
+static void
+do_dispsdt(void)
+{
+	int i;
+	uintptr_t addr;
+	int n;
+
+	addr = acpi_table.rsdt;
+	if (addr) {
+		n = acpi_table.rsdt_nentry;
+		for (i=0; i<n; i++) {
+			uintptr_t e = ACPI_R32(addr, 36+i*4);
+			char buf[5];
+			buf[0] = ((char*)e)[0];
+			buf[1] = ((char*)e)[1];
+			buf[2] = ((char*)e)[2];
+			buf[3] = ((char*)e)[3];
+			buf[4] = '\0';
+
+			printf("%s @ %08x\n", buf, (int)e);
+		}
+	}
+}
 
 #define NAME_LEN(name) name, sizeof(name)-1
 
@@ -224,8 +320,9 @@ static struct command commands[] = {
 	{NAME_LEN("dump"), dump_info},
 	{NAME_LEN("sti"), do_sti},
 	{NAME_LEN("waitsec"), do_waitsec},
-
-	{NAME_LEN("dump_smp_flag"), dump_smp_flag},
+	{NAME_LEN("dispsdt"), do_dispsdt},
+	{NAME_LEN("acpiapic"), do_acpiapic},
+	{NAME_LEN("hpetint"), do_hpetint},
 };
 
 static void
@@ -279,8 +376,11 @@ cmain()
 {
 	char *p = (char*)0xb8000;
 	char buffer[16];
-	int ver, bidx, extf, func;
+	int ver, bidx, extf, func, r;
 	unsigned int apic_svr;
+	struct build_acpi_table_error build_acpi_table_error;
+	enum apic_setup_error_code setup_apic_error;
+	enum hpet_setup_error_code setup_hpet_error;
 
 	int i, j;
 	for (i=0; i<25; i++) {
@@ -300,8 +400,7 @@ cmain()
 	} else {
 		WRITE_STR("FAIL:APIC not found. too old cpu\n");
 		vga_puts("FAIL:APIC not found. too old cpu");
-		while (1)
-			hlt();
+		while (1) hlt();
 	}
 
 	dump_info();
@@ -311,7 +410,38 @@ cmain()
 	write_local_apic(LAPIC_SVR, apic_svr | LAPIC_SVR_APIC_ENABLE);
 	LAPIC_SET_LVT_ERROR(LAPIC_UNMASK);
 
-	wait_setup();
+	r = build_acpi_table(&build_acpi_table_error);
+	if (r < 0) {
+		print_build_acpi_table_error(&build_acpi_table_error);
+		vga_puts("FAIL:ACPI not found");
+		while (1) hlt();
+	}
+	printf("ACPI RSDP @ %08x\n", (int)acpi_table.rsdp);
+	printf("ACPI XSDT @ %08x\n", (int)acpi_table.xsdt);
+	printf("ACPI RSDT @ %08x\n", (int)acpi_table.rsdt);
+
+	setup_apic_error = apic_setup();
+	if (setup_apic_error != APIC_SETUP_OK) {
+		puts("setup apic error");
+		vga_puts("FAIL:ACPI not found");
+		while (1) hlt();
+	}
+
+	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
+	printf("num processor = %d\n", (int)apic_info.num_processor);
+
+	setup_hpet_error = hpet_setup();
+	if (setup_hpet_error != HPET_SETUP_OK) {
+		puts("Setup hpet error. Assumes @ 0xfed00000");
+		hpet_base_addr = ICH7_HPET_ADDR_BASE;
+	} else {
+		printf("hpet @ %08x\n", (int)hpet_base_addr);
+		if (hpet_flags & HPET_FLAG_4K) {
+			puts("hpet 4k protected");
+		} else if (hpet_flags & HPET_FLAG_64K) {
+			puts("hpet 64k protected");
+		}
+	}
 
 	while(1) {
 		int len = serial_gets(buffer, 16);
@@ -334,7 +464,7 @@ cmain()
 }
 
 void
-cap_main(void)
+cAP_main(void)
 {
 	unsigned int apic_id, apic_svr;
 	/* enable apic */

@@ -1,6 +1,9 @@
 #ifndef QO3_KERNEL_APIC_H
 #define QO3_KERNEL_APIC_H
 
+#include "smp.h"
+#include <stdint.h>
+
 #define LAPIC_BASE		0xfee00000
 #define LAPIC_ID		(LAPIC_BASE+0x0020)
 #define LAPIC_VERSION		(LAPIC_BASE+0x0030)
@@ -77,5 +80,23 @@
 #define LAPIC_DIVIDE_64 9
 #define LAPIC_DIVIDE_128 10
 #define LAPIC_DIVIDE_1 11
+
+struct apic_info {
+	int num_processor;
+	uintptr_t ioapic_addr;
+	int ioapic_id;
+};
+
+extern struct apic_info apic_info;
+
+enum apic_setup_error_code {
+	APIC_SETUP_ENTRY_NOT_FOUND,
+	APIC_SETUP_TOO_MANY_PROCESSORS,
+	APIC_SETUP_TOO_MANY_IOAPIC,
+	APIC_SETUP_IOAPIC_NOT_FOUND,
+	APIC_SETUP_OK
+};
+/* requires acpi table */
+enum apic_setup_error_code apic_setup(void);
 
 #endif
