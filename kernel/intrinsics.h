@@ -39,6 +39,29 @@ static inline void outb(unsigned short port, unsigned char val)
 	__asm__ __volatile__ ("outb %0, %1":: "a"(val), "Nd"(port));
 }
 
+static inline uint16_t inw(unsigned shrot port)
+{
+	uint16_t a;
+	__asm__ __volatile__ ("inw %1, %0": "=a"(a): "Nd"(port));
+	return a;
+}
+static inline void outw(unsigned short port, uint16_t val)
+{
+	__asm__ __volatile__ ("outw %0, %1":: "a"(val), "Nd"(port));
+}
+static inline uint32_t inl(unsigned shrot port)
+{
+	uint32_t a;
+	__asm__ __volatile__ ("inl %1, %0": "=a"(a): "Nd"(port));
+	return a;
+}
+static inline void outl(unsigned short port, uint32_t val)
+{
+	__asm__ __volatile__ ("outl %0, %1":: "a"(val), "Nd"(port));
+}
+
+
+
 #define hlt()                                   \
         __asm__ __volatile__ ("hlt")
 

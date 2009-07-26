@@ -163,8 +163,6 @@ read_dsdt(struct build_acpi_table_error *err, uintptr_t dsdt)
 			break;
 		}
 
-		printf("len_len %x aml_len %x\n", len_len, aml_len);
-
 		blk_len = len_len + aml_len;
 		len -= blk_len;
 		off += blk_len;

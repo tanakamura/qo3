@@ -147,6 +147,7 @@ idt:
 
 	idt_entry(lapic_timer) ; 64 lapic timer
 	idt_entry(lapic_error) ; 65 lapic error
+	idt_entry(hpet0_intr)  ; 66 hpet comparator0
 
 %macro gen_handler 2
 
@@ -174,6 +175,7 @@ idt:
 	gen_handler invalid_opcode, cinvalid_opcode
 	gen_handler lapic_timer, clapic_timer
 	gen_handler lapic_error, clapic_error
+	gen_handler hpet0_intr, chpet0_intr
 
 	gen_handler_code unknown_exception1, cunknown_exception, 1
 	gen_handler_code unknown_exception7, cunknown_exception, 7

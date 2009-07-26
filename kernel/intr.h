@@ -1,7 +1,7 @@
 #ifndef QO3_INTR_H
 #define QO3_INTR_H
 
-#include "apic.h"
+#include "lapic.h"
 
 void cdiv_error(void);
 void cunknown_exception(int vec);

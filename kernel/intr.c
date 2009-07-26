@@ -46,6 +46,13 @@ clapic_error(void)
 	write_local_apic(LAPIC_EOI, 0);
 }
 
+void
+chpet0_intr(void)
+{
+	puts("hpet0 intr");
+	write_local_apic(LAPIC_EOI, 0);
+}
+
 #define GEN_UNHANDLED(name)			\
 void name(void) {				\
 	puts(#name);				\

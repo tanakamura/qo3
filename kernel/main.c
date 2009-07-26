@@ -8,9 +8,11 @@
 #include "intrinsics.h"
 #include "vga.h"
 #include "msr.h"
-#include "apic.h"
+#include "lapic.h"
+#include "ioapic.h"
 #include "ich7.h"
 #include "intr.h"
+#include "int-assign.h"
 #include "hpet.h"
 #include "wait.h"
 #include "smp.h"
@@ -194,9 +196,36 @@ do_waitsec(void)
 static void
 do_hpetint(void)
 {
-	int val;
+	uint32_t cnf;
+	int sec;
+	uint32_t ticks;
+
+	/* enable replace legacy root */
+	cnf = HPET_READ(HPET_GEN_CONF);
+	cnf |= HPET_LEG_RT_CNF;
+	HPET_WRITE(HPET_GEN_CONF, cnf);
+
+	printf("enabled irq = %x\n", HPET_READ(HPET_TIM0_CONF_HI));
+
 	printf("sec?> ");
-	val = read_int();
+	sec = read_int();
+
+	/* one shot, 32bit, interrupt enabled, irq=2, edge trigger */
+	cnf = HPET_CONF_32MODE_CNF|HPET_CONF_INT_ENB_CNF;
+	HPET_WRITE(HPET_TIM0_CONF, cnf);
+	ticks = sec * 1000 * hpet_freq_khz;
+
+	HPET_WRITE(HPET_MAIN_CNT, 0);
+	HPET_WRITE(HPET_TIM0_COMPARATOR, ticks);
+
+
+	/* mask clear, edge trigger, interrupt hi, destination physical,
+	 * delivery fixed, vec=HPET0_VEC */
+	ioapic_set_redirect32(HPET0_IRQ,
+			      IOAPIC_DESTINATION_ID32(0),
+			      IOAPIC_DELIVERY_FIXED|IOAPIC_VECTOR(HPET0_VEC));
+
+	hpet_start();
 }
 
 static void

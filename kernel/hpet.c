@@ -10,7 +10,7 @@ unsigned int hpet_freq_khz;
 void
 hpet_start(void)
 {
-	unsigned int cnf = mmio_read32(hpet_base_addr + HPET_GEN_CONF);
+	uint32_t cnf = mmio_read32(hpet_base_addr + HPET_GEN_CONF);
 	cnf |= HPET_ENABLE_CNF;
 	mmio_write32(hpet_base_addr + HPET_GEN_CONF, cnf);
 }
@@ -18,7 +18,7 @@ hpet_start(void)
 void
 hpet_stop(void)
 {
-	unsigned int cnf = mmio_read32(hpet_base_addr + HPET_GEN_CONF);
+	uint32_t cnf = mmio_read32(hpet_base_addr + HPET_GEN_CONF);
 	cnf &= ~HPET_ENABLE_CNF;
 	mmio_write32(hpet_base_addr + HPET_GEN_CONF, cnf);
 }

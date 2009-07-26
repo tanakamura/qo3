@@ -1,4 +1,4 @@
-#include "apic.h"
+#include "lapic.h"
 #include "acpi.h"
 
 struct apic_info apic_info;
