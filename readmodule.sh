@@ -44,7 +44,15 @@ EOF
 	 linker='$(CC)'
      fi
 
+     module_includes=
+
+     for i in ${INCLUDES}
+     do
+         module_includes="$includes -I$mod_dir/$i"
+     done
+
      depends=
+     includes=$module_includes
 
      for i in ${NEED_MODULE}
      do
@@ -106,7 +114,7 @@ ALL_GEN_FILES+=\$(${MODNAME}_GEN_FILES) ${mod_dir}/Makefile
 ALL_SOURCES+=\$(${MODNAME}_C_SRCS) \$(${MODNAME}_CXX_SRCS)
 ALL_TARGETS+=$target
 ALL_GEN_SOURCES+=\$(${MODNAME}_GEN_SOURCES)
-DEPEND_INC+=-I${mod_dir}
+DEPEND_INC+=-I${mod_dir} ${module_includes}
 
 ${MODNAME}_clean:
 	rm -f \$(${MODNAME}_GEN_FILES)

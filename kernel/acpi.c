@@ -1,6 +1,22 @@
-#include "acpi.h"
 #include <stdio.h>
-#include "brk.h"
+#include "acpi.h"
+#include "kernel/qo3-acpi.h"
+#include "kernel/brk.h"
+#include "kernel/fatal.h"
+#include "kernel/bios.h"
+
+#define DEBUG_PUTS(a) (void)(0)
+
+static void
+sigstr(char *p, uint32_t sig)
+{
+	char *src = (char*)&sig;
+	p[0] = src[0];
+	p[1] = src[1];
+	p[2] = src[2];
+	p[3] = src[3];
+	p[4] = '\0';
+}
 
 #define SIG(a,b,c,d) (((d)<<24) | ((c)<<16) | ((b)<<8) | (a))
 #define R8 ACPI_R8
@@ -41,6 +57,17 @@ static int
 is_valid_sig4(uintptr_t addr, uint32_t sig0)
 {
 	uint32_t *ptr32 = (uint32_t *)addr;
+
+#ifdef DEBUG
+	if (ptr32[0] != sig0) {
+		char buffer[5];
+		puts("valid sig failed");
+		sigstr(buffer, sig0);
+		puts(buffer);
+		sigstr(buffer, *ptr32);
+		puts(buffer);
+	}
+#endif
 
 	return (ptr32[0] == sig0);
 }
@@ -88,6 +115,7 @@ find_RSDP(void)
 	return 0;
 }
 
+#ifdef XSDT
 static int
 read_xsdt(struct build_acpi_table_error *err, uintptr_t xsdt)
 {
@@ -107,6 +135,7 @@ read_xsdt(struct build_acpi_table_error *err, uintptr_t xsdt)
 
 	return 0;
 }
+#endif
 
 static int
 read_rsdt(struct build_acpi_table_error *err, uintptr_t rsdt)
@@ -211,8 +240,11 @@ build_acpi_table(struct build_acpi_table_error *err)
 		return -1;
 	}
 
+	DEBUG_PUTS("find RSDP");
+
 	acpi_table.rsdp = r;
 	acpi_table.rsdt = R32(r,16);
+#ifdef XSDT
 	acpi_table.xsdt = R64(r,24);
 
 	if (acpi_table.xsdt) {
@@ -220,18 +252,26 @@ build_acpi_table(struct build_acpi_table_error *err)
 		if (result < 0) {
 			return -1;
 		}
+
+		DEBUG_PUTS("find XSDT");
 	}
+#else
+	acpi_table.xsdt = 0;
+#endif
 
 	result = read_rsdt(err, acpi_table.rsdt);
 	if (result < 0) {
 		return -1;
 	}
+	DEBUG_PUTS("find RSDT");
 
 	r = find_acpi_description_entry(SIG('F','A','C','P'));
 	if (! r) {
 		err->code = BUILD_ACPI_TABLE_FACP_NOT_FOUND;
 		return -1;
 	}
+	DEBUG_PUTS("find FACP");
+
 	acpi_table.facp = r;
 	result = read_facp(err, acpi_table.facp);
 	if (result < 0) {
@@ -244,13 +284,15 @@ build_acpi_table(struct build_acpi_table_error *err)
 void
 print_build_acpi_table_error(struct build_acpi_table_error *er)
 {
+	char buffer[5];
 	switch (er->code) {
 	case BUILD_ACPI_TABLE_RSDP_NOT_FOUND:
 		puts("rsdp not found");
 		return;
 
 	case BUILD_ACPI_TABLE_UNKNOWN_SIG:
-		printf("unknown sig @ %08x\n", (int)er->u.addr);
+		sigstr(buffer, er->u.addr);
+		printf("unknown sig @ %08x (%s)\n", (int)er->u.addr, buffer);
 		return;
 
 	case BUILD_ACPI_TABLE_FACP_NOT_FOUND:
@@ -288,4 +330,44 @@ find_acpi_description_entry(uint32_t sig)
 	}
 
 	return 0;
+}
+
+void
+acpi_start(void)
+{
+	ACPI_STATUS r;
+	//AcpiDbgLevel = ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_VERBOSITY1;
+	r = AcpiInitializeSubsystem();
+	if (ACPI_FAILURE(r)) {
+		puts("initialize subsystem");
+		fatal();
+	}
+
+	r = AcpiInitializeTables(NULL, 4, 0);
+	if (ACPI_FAILURE(r)) {
+		puts("initialize tables");
+		fatal();
+	}
+
+	r = AcpiLoadTables();
+	if (ACPI_FAILURE(r)) {
+		puts("load tables");
+		fatal();
+	}
+
+
+	r = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
+
+	if (ACPI_FAILURE(r)) {
+		printf("initialize subsystem: %s", AcpiFormatException(r));
+		bios_system_reset();
+	}
+
+	r = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
+
+	if (ACPI_FAILURE(r)) {
+		printf("initialize objects: %s", AcpiFormatException(r));
+		bios_system_reset();
+	}
+
 }

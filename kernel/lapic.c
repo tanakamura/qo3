@@ -1,5 +1,5 @@
 #include "lapic.h"
-#include "acpi.h"
+#include "qo3-acpi.h"
 
 struct apic_info apic_info;
 

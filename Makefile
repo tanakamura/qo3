@@ -3,11 +3,12 @@ all: do-it-all
 
 AS=nasm
 ASFLAGS=-felf32 
-COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m32
+CPPFLAGS=-D__QO3__=1
+COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m32 -msse3 -Wno-unused-parameter
 INCLUDES=-I./
-CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES)
+CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES) -Os -fno-strict-aliasing -s
 CXXFLAGS=$(COMMON_CFLAGS)
-LDFLAGS=-nostdlib -m32 -Wl,-Ttext,100000 -lgcc -Wl,-Map,QO3.map
+LDFLAGS=-nostdlib -m32 -Wl,-Ttext,100000 -lgcc -Wl,-Map,QO3.map -s
 
 export LANG=C
 DEPEND_INC=-I$(shell gcc --print-search-dirs | awk '/: \// {print $$2}' )include $(INCLUDES)

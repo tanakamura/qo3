@@ -1,14 +1,15 @@
+#include <pmmintrin.h>
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include "ns16550.h"
-#include "bios.h"
 #include "intrinsics.h"
 #include "vga.h"
 #include "msr.h"
 #include "lapic.h"
+#include "pci.h"
 #include "ioapic.h"
 #include "ich7.h"
 #include "intr.h"
@@ -16,10 +17,14 @@
 #include "hpet.h"
 #include "wait.h"
 #include "smp.h"
+#include "qo3-acpi.h"
+#include "gma.h"
+#include "event.h"
 #include "acpi.h"
+#include "brk.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
-#define WRITE_STR(p) ns16550_write_text(p, SIZEOF_STR(p))
+#define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
 
 static int
 serial_gets(char *buffer, int buflen)
@@ -27,11 +32,15 @@ serial_gets(char *buffer, int buflen)
 	int i;
 	char c;
 	for (i=0; i<buflen; i++) {
-		ns16550_read(&c, 1);
-		ns16550_write(&c, 1);
+		event_bits_t ready = 0;
+
+		ns16550_read(&c, 1, &ready, (1<<0));
+		wait_event(&ready, (1<<0));
+
+		ns16550_write_poll(&c, 1);
 
 		if (c == '\r') {
-			ns16550_write("\n", 1);
+			ns16550_write_poll("\n", 1);
 			break;
 		}
 		if (c == '\n') {
@@ -333,10 +342,75 @@ do_dispsdt(void)
 	}
 }
 
+static void
+do_mwait(void)
+{
+	int c = 0;
+	monitor(&c, 0, 0);
+	mwait(3<<4|2, 0);
+}
+
+static void
+do_async_get(void)
+{
+	char buffer[4];
+	event_bits_t ready = 0;
+
+	ns16550_read(buffer, 2, &ready, (1<<0));
+
+	wait_event(&ready, (1<<0));
+	buffer[2] = '\0';
+	printf("ok: %s\n", buffer);
+}
+
+static void
+do_disablevga(void)
+{
+	gma_disable_vga();
+}
+
+
+static void
+do_enablevga(void)
+{
+	gma_enable_vga();
+}
+
+static void
+do_acpi_sleep(void)
+{
+	int n;
+	ACPI_STATUS r;
+
+	printf("S?> ");
+	n = read_int();
+
+	r = AcpiEnterSleepStatePrep(n);
+	if (ACPI_FAILURE(r)) {
+		printf("sleep prep: %s\n", AcpiFormatException(r));
+	}
+
+	r = AcpiEnterSleepState(n);
+	if (ACPI_FAILURE(r)) {
+		printf("sleep: %s\n", AcpiFormatException(r));
+	}
+}
+
+static void
+do_reset(void)
+{
+	ACPI_STATUS r = AcpiReset();
+	if (ACPI_FAILURE(r)) {
+		printf("reset: %s\n", AcpiFormatException(r));
+	}
+}
+
+
 #define NAME_LEN(name) name, sizeof(name)-1
+static void do_help(void);
 
 static struct command commands[] = {
-	{NAME_LEN("reset"), bios_system_reset},
+	{NAME_LEN("reset"), do_reset},
 	{NAME_LEN("rdmsr"), show_msr},
 	{NAME_LEN("cpuid"), show_cpuid},
 	{NAME_LEN("show_mtrr"), show_mtrr},
@@ -352,7 +426,24 @@ static struct command commands[] = {
 	{NAME_LEN("dispsdt"), do_dispsdt},
 	{NAME_LEN("acpiapic"), do_acpiapic},
 	{NAME_LEN("hpetint"), do_hpetint},
+	{NAME_LEN("help"), do_help},
+	{NAME_LEN("mwait"), do_mwait},
+	{NAME_LEN("async_get"), do_async_get},
+	{NAME_LEN("disablevga"), do_disablevga},
+	{NAME_LEN("enablevga"), do_enablevga},
+	{NAME_LEN("acpi_sleep"), do_acpi_sleep}
 };
+
+#define ALEN(a) (sizeof(a)/sizeof(a[0]))
+
+static void
+do_help(void)
+{
+	unsigned int i;
+	for (i=0; i<ALEN(commands); i++) {
+		puts(commands[i].com);
+	}
+}
 
 static void
 dump_info(void)
@@ -398,8 +489,6 @@ dump_info(void)
 }
 
 
-#define ALEN(a) (sizeof(a)/sizeof(a[0]))
-
 void
 cmain()
 {
@@ -410,6 +499,8 @@ cmain()
 	struct build_acpi_table_error build_acpi_table_error;
 	enum apic_setup_error_code setup_apic_error;
 	enum hpet_setup_error_code setup_hpet_error;
+	struct pci_init_error pci_error;
+	struct gma_init_error gma_error;
 
 	int i, j;
 	for (i=0; i<25; i++) {
@@ -419,6 +510,7 @@ cmain()
 		}
 	}
 	cpuid(1, ver, bidx, extf, func);
+	brk_init();
 
 	ns16550_init();
 	WRITE_STR("hello QO3!\n");
@@ -472,9 +564,30 @@ cmain()
 		}
 	}
 
+	r = pci_init(&pci_error);
+	if (r < 0) {
+		puts("pci init error");
+	}
+
+	/*
+	r = gma_init(&gma_error);
+	if (r < 0) {
+		puts("gma init error");
+		vga_puts("gma init error");
+	}
+	*/
+	(void)gma_error;
+
+	ns16550_init_intr();
+
+	acpi_start();
+
 	while(1) {
-		int len = serial_gets(buffer, 16);
+		int len;
 		size_t i;
+
+		printf("> ");
+		len = serial_gets(buffer, 16);
 		for (i=0; i<ALEN(commands); i++) {
 			if (len == commands[i].len) {
 				if (memcmp(buffer, commands[i].com, len) == 0) {
@@ -492,6 +605,17 @@ cmain()
 	while (1);
 }
 
+static void
+end_ap(void)
+{
+	int c = 0;
+	while (1) {
+		monitor(&c, 0, 0);
+		mwait(3<<4|2, 0);
+	}
+}
+
+
 void
 cAP_main(void)
 {
@@ -507,7 +631,7 @@ cAP_main(void)
 	sfence();
 
 	while (1) {
-		hlt();
+		end_ap();
 	}
 }
 

@@ -12,11 +12,15 @@ enum npr_printf_format_type {
 	NPR_PRINTF_UDIGIT,	/* %u */
 	NPR_PRINTF_LUDIGIT,	/* %lu */
 	NPR_PRINTF_LLUDIGIT,	/* %llu */
-	NPR_PRINTF_HEX,		/* %x */
-	NPR_PRINTF_LHEX,	/* %lx */
-	NPR_PRINTF_LLHEX,	/* %llx */
+	NPR_PRINTF_hex,		/* %x */
+	NPR_PRINTF_lhex,	/* %lx */
+	NPR_PRINTF_llhex,	/* %llx */
+	NPR_PRINTF_HEX,		/* %X */
+	NPR_PRINTF_LHEX,	/* %lX */
+	NPR_PRINTF_LLHEX,	/* %llX */
 	NPR_PRINTF_POINTER,	/* %p */
 	NPR_PRINTF_STR,		/* %s */
+	NPR_PRINTF_CHAR,	/* %c */
 	NPR_PRINTF_ORDINARY,	/* "abc" */
 	NPR_PRINTF_ORDINARY_CHAR /* "a" */
 };
@@ -31,6 +35,7 @@ struct npr_printf_arg {
 		signed int si;
 		unsigned int ui;
 		void *p;
+		char c;
 	} u;
 };
 
@@ -41,6 +46,7 @@ struct npr_printf_arg {
 #define NPR_PRINTF_ARG_ULONG(i) {0,.u.ul=i},
 #define NPR_PRINTF_ARG_ULLONG(i) {0,.u.ull=i},
 #define NPR_PRINTF_ARG_POINTER(x) {0,.u.p=x},
+#define NPR_PRINTF_ARG_CHAR(x) {0,.u.c=x},
 
 #define NPR_PRINTF_ARG_STR_C(s) {s, .u.si=sizeof(s)-1},
 #define NPR_PRINTF_ARG_STR(s,l) {s, .u.si=l},
@@ -59,15 +65,18 @@ struct npr_printf_format {
 };
 
 #define NPR_FORMAT_DIGIT(w,z) {{(const char*)w}, z, NPR_PRINTF_DIGIT},
+#define NPR_FORMAT_hex(w,z) {{(const char*)w}, z, NPR_PRINTF_hex},
 #define NPR_FORMAT_HEX(w,z) {{(const char*)w}, z, NPR_PRINTF_HEX},
 #define NPR_FORMAT_UDIGIT(w,z) {{(const char*)w}, z, NPR_PRINTF_UDIGIT},
 
 #define NPR_FORMAT_LDIGIT(w,z) {{(const char*)w}, z, NPR_PRINTF_LDIGIT},
+#define NPR_FORMAT_lhex(w,z) {{(const char*)w}, z, NPR_PRINTF_lhex},
 #define NPR_FORMAT_LHEX(w,z) {{(const char*)w}, z, NPR_PRINTF_LHEX},
 #define NPR_FORMAT_LUDIGIT(w,z) {{(const char*)w}, z, NPR_PRINTF_LUDIGIT},
 
-#define NPR_FORMAT_LLHEX(w,z) {{(const char*)w}, z, NPR_PRINTF_LLHEX},
 #define NPR_FORMAT_LLDIGIT(w,z) {{(const char*)w}, z, NPR_PRINTF_LLDIGIT},
+#define NPR_FORMAT_llhex(w,z) {{(const char*)w}, z, NPR_PRINTF_llhex},
+#define NPR_FORMAT_LLHEX(w,z) {{(const char*)w}, z, NPR_PRINTF_LLHEX},
 #define NPR_FORMAT_LLUDIGIT(w,z) {{(const char*)w}, z, NPR_PRINTF_LLUDIGIT},
 
 #define NPR_FORMAT_POINTER(w) {{(const char*)w}, 0, NPR_PRINTF_POINTER},

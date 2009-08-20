@@ -148,6 +148,8 @@ idt:
 	idt_entry(lapic_timer) ; 64 lapic timer
 	idt_entry(lapic_error) ; 65 lapic error
 	idt_entry(hpet0_intr)  ; 66 hpet comparator0
+	idt_entry(ns16550_intr)	; 67 com0
+	idt_entry(acpi_intr)	; 68 acpi
 
 %macro gen_handler 2
 
@@ -176,6 +178,8 @@ idt:
 	gen_handler lapic_timer, clapic_timer
 	gen_handler lapic_error, clapic_error
 	gen_handler hpet0_intr, chpet0_intr
+	gen_handler ns16550_intr, cns16550_intr
+	gen_handler acpi_intr, cacpi_intr
 
 	gen_handler_code unknown_exception1, cunknown_exception, 1
 	gen_handler_code unknown_exception7, cunknown_exception, 7

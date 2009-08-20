@@ -1,11 +1,14 @@
 #include "intr.h"
 #include <stdio.h>
+#include "intrinsics.h"
 
 void
 fatal(void)
 {
+	int c;
 	while (1) {
-		__asm__ __volatile__ ("hlt");
+		monitor(&c, 0, 0);
+		mwait(3<<4|2, 0);
 	}
 	
 }

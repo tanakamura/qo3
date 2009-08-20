@@ -41,6 +41,7 @@ int build_acpi_table(struct build_acpi_table_error *err);
 void print_build_acpi_table_error(struct build_acpi_table_error *err);
 
 #define ACPI_SIG(a,b,c,d) (((d)<<24) | ((c)<<16) | ((b)<<8) | (a))
+#define ACPI_R64ADDR(b,o) (*((uint32_t*)((b)+(o))))
 #define ACPI_R32(b,o) (*((uint32_t*)((b)+(o))))
 #define ACPI_R64(b,o) (*((uint64_t*)((b)+(o))))
 #define ACPI_R16(b,o) (*((uint16_t*)((b)+(o))))
@@ -61,5 +62,7 @@ enum acpi_apic_type_code {
 	ACPI_LOCAL_SAPIC = 7,
 	ACPI_PLATFORM_INTERRUPT_SOURCES = 8
 };
+
+void acpi_start(void);
 
 #endif

@@ -70,10 +70,18 @@ fill_with(char *dst,
 	return dst_cur;
 }
 
-static const char n2c_table[] = {
+static const char n2c_table_lower[] = {
 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 	'a', 'b', 'c', 'd', 'e', 'f'
 };
+
+static const char n2c_table_upper[] = {
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	'A', 'B', 'C', 'D', 'E', 'F'
+};
+
+
+#define FLAG_UPCASE (1<<0)
 
 static int
 output_integer(struct npr_printf_state *st,
@@ -81,6 +89,7 @@ output_integer(struct npr_printf_state *st,
 	       int dstcur,
 	       int dstlen,
 	       int wid, int lead_zero, signed long long v, int base,
+	       int flags,
 	       int *is_fini)
 {
 	char *tmp;
@@ -90,6 +99,14 @@ output_integer(struct npr_printf_state *st,
 	unsigned long long uv;
 	unsigned int is_signed = 0;
 	tmp = st->dump_digit_buf;
+
+	const char *n2c_table;
+
+	if (flags & FLAG_UPCASE) {
+		n2c_table = n2c_table_upper;
+	} else {
+		n2c_table = n2c_table_lower;
+	}
 
 	switch (st->state) {
 	case 0:
@@ -257,31 +274,47 @@ int npr_sprintf(struct npr_printf_state *st,
 		break;
 
 
-#define CASE_DIGIT(casetag,type,uniontag,casttype,base)			\
+#define CASE_DIGIT(casetag,type,uniontag,casttype,base,flags)		\
 		case casetag:						\
 		{							\
 			type v = a->u.uniontag;				\
 			di = output_integer(st, d, di,			\
 					    dstlen,			\
 					    wid, f->zero_fill,		\
-					    (casttype)v, base, is_fini); \
+					    (casttype)v, base, flags,	\
+					    is_fini);			\
 			if (*is_fini == 0)				\
 				goto quit;				\
 		}							\
 		ai++;							\
 		break;
 
-		CASE_DIGIT(NPR_PRINTF_DIGIT, int, si, signed long long, 10);
-		CASE_DIGIT(NPR_PRINTF_LDIGIT, long, sl, signed long long, 10);
-		CASE_DIGIT(NPR_PRINTF_LLDIGIT, long long, sll, signed long long, 10);
-		CASE_DIGIT(NPR_PRINTF_UDIGIT, unsigned int, ui, unsigned long long, 10);
-		CASE_DIGIT(NPR_PRINTF_LUDIGIT, unsigned long, ul, unsigned long long, 10);
-		CASE_DIGIT(NPR_PRINTF_LLUDIGIT, unsigned long long, ull, unsigned long long, 10);
+		CASE_DIGIT(NPR_PRINTF_DIGIT, int, si, signed long long, 10, 0);
+		CASE_DIGIT(NPR_PRINTF_LDIGIT, long, sl, signed long long, 10, 0);
+		CASE_DIGIT(NPR_PRINTF_LLDIGIT, long long, sll, signed long long, 10, 0);
+		CASE_DIGIT(NPR_PRINTF_UDIGIT, unsigned int, ui, unsigned long long, 10, 0);
+		CASE_DIGIT(NPR_PRINTF_LUDIGIT, unsigned long, ul, unsigned long long, 10, 0);
+		CASE_DIGIT(NPR_PRINTF_LLUDIGIT, unsigned long long, ull, unsigned long long, 10, 0);
 
-		CASE_DIGIT(NPR_PRINTF_HEX, unsigned int, ui, unsigned long long, 16);
-		CASE_DIGIT(NPR_PRINTF_LHEX, unsigned long, ul, unsigned long long, 16);
-		CASE_DIGIT(NPR_PRINTF_LLHEX, unsigned long long, ull, unsigned long long, 16);
-		CASE_DIGIT(NPR_PRINTF_POINTER, void *, p, uintptr_t, 16);
+		CASE_DIGIT(NPR_PRINTF_HEX, unsigned int, ui, unsigned long long, 16, FLAG_UPCASE);
+		CASE_DIGIT(NPR_PRINTF_LHEX, unsigned long, ul, unsigned long long, 16, FLAG_UPCASE);
+		CASE_DIGIT(NPR_PRINTF_LLHEX, unsigned long long, ull, unsigned long long, 16, FLAG_UPCASE);
+		CASE_DIGIT(NPR_PRINTF_hex, unsigned int, ui, unsigned long long, 16, 0);
+		CASE_DIGIT(NPR_PRINTF_lhex, unsigned long, ul, unsigned long long, 16, 0);
+		CASE_DIGIT(NPR_PRINTF_llhex, unsigned long long, ull, unsigned long long, 16, 0);
+		CASE_DIGIT(NPR_PRINTF_POINTER, void *, p, uintptr_t, 16, 0);
+
+
+		case NPR_PRINTF_CHAR:
+		{
+			if (di >= dstlen)
+				goto quit;
+
+			dst[di] = a->u.c;
+			di++;
+			ai++;
+		}
+		break;
 
 		case NPR_PRINTF_ORDINARY:
 		{

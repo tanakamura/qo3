@@ -3,23 +3,24 @@
 #include <stdarg.h>
 #include <string.h>
 
-#define TOO_MANY_FORMAT -1
-#define INVALID_FORMAT -2
-
 int
 npr_printf_build_format(struct npr_printf_format *f,
 			int max_format,
 			const char *format,
-			int format_len)
+			int format_len,
+			struct npr_printf_build_format_error *error)
 {
 	char c;
-	int i = 0;
-	int j = 0;
+	int i = 0;		/* index of format charctors */
+	int j = 0;		/* index of dest format */
 	int zero_fill, wid, d;
 	int longlongflag;
+	int halfflag;
 
 #define CHECK_I(ret) if (i >= format_len) { return (ret); }
 #define CHECK_J(ret) if (j >= max_format) { return (ret); }
+#define CHECK_I_ERROR(c) if (i >= format_len) { error->code=c; error->idx=i; return -1; }
+#define CHECK_J_ERROR(c) if (j >= max_format) { error->code=c; return -1; }
 
 format_start:
 	CHECK_I(j);
@@ -29,7 +30,7 @@ format_start:
 		i++;
 		goto parse_fmt_number;
 	}
-	CHECK_J(TOO_MANY_FORMAT);
+	CHECK_J_ERROR(NPR_PRINTF_BUILD_FORMAT_TOO_MANY_FORMATS);
 
 	f[j].u.ordinary = format + i;
 	f[j].zero_fill = 0;
@@ -48,7 +49,7 @@ ord_str:
 	goto ord_str;
 
 parse_fmt_number:
-	CHECK_I(INVALID_FORMAT);
+	CHECK_I_ERROR(NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT);
 
 	c = format[i];
 	zero_fill = 0;
@@ -58,7 +59,7 @@ parse_fmt_number:
 	}
 	wid = 0;
 	while (1) {
-		CHECK_I(INVALID_FORMAT);
+		CHECK_I_ERROR(NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT);
 		c = format[i];
 
 		if (!isdigit(c))
@@ -70,13 +71,20 @@ parse_fmt_number:
 	}
 
 	longlongflag = 0;
+	halfflag=0;
 	c = format[i];
+
+	if (c == '.' || c == '-') {
+		/* fixme */
+		i++;
+		goto parse_fmt_number;
+	}
 
 	if (c == 'l') {
 		longlongflag++;
 		i++;
 
-		CHECK_I(INVALID_FORMAT);
+		CHECK_I_ERROR(NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT);
 		c = format[i];
 
 		if (c == 'l') {
@@ -84,10 +92,22 @@ parse_fmt_number:
 			i++;
 		}
 	}
+	if (c == 'h') {
+		halfflag++;
+		i++;
 
+		CHECK_I_ERROR(NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT);
+		c = format[i];
 
-	CHECK_I(INVALID_FORMAT);
-	CHECK_J(TOO_MANY_FORMAT);
+		if (c == 'h') {
+			halfflag++;
+			i++;
+		}
+		/* fixme : halfflag */
+	}
+
+	CHECK_I_ERROR(NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT);
+	CHECK_J_ERROR(NPR_PRINTF_BUILD_FORMAT_TOO_MANY_FORMATS);
 
 	c = format[i];
 
@@ -103,6 +123,10 @@ parse_fmt_number:
 			break;
 
 		case 'x':
+			f[j].type = NPR_PRINTF_hex;
+			break;
+
+		case 'X':
 			f[j].type = NPR_PRINTF_HEX;
 			break;
 
@@ -112,9 +136,16 @@ parse_fmt_number:
 
 		case 'p':
 			f[j].type = NPR_PRINTF_POINTER;
+			break;
+
+		case 'c':
+			f[j].type = NPR_PRINTF_CHAR;
+			break;
 
 		default:
-			return INVALID_FORMAT;
+			error->code = NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT;
+			error->idx = i;
+			return -1;
 		}
 
 		break;
@@ -130,11 +161,17 @@ parse_fmt_number:
 			break;
 
 		case 'x':
+			f[j].type = NPR_PRINTF_lhex;
+			break;
+
+		case 'X':
 			f[j].type = NPR_PRINTF_LHEX;
 			break;
 
 		default:
-			return INVALID_FORMAT;
+			error->code = NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT;
+			error->idx = i;
+			return -1;
 		}
 		break;
 
@@ -149,11 +186,18 @@ parse_fmt_number:
 			break;
 
 		case 'x':
+			f[j].type = NPR_PRINTF_llhex;
+			break;
+
+		case 'X':
 			f[j].type = NPR_PRINTF_LLHEX;
 			break;
 
+
 		default:
-			return INVALID_FORMAT;
+			error->code = NPR_PRINTF_BUILD_FORMAT_INVALID_FORMAT;
+			error->idx = i;
+			return -1;
 		}
 		break;
 	}
@@ -177,6 +221,7 @@ npr_printf_build_varg(struct npr_printf_arg *dest,
 	long long ll;
 	int j = 0;
 	char *s;
+	char c;
 	void *p;
 
 	for (i=0; i<n; i++) {
@@ -184,6 +229,7 @@ npr_printf_build_varg(struct npr_printf_arg *dest,
 		case NPR_PRINTF_DIGIT:
 		case NPR_PRINTF_UDIGIT:
 		case NPR_PRINTF_HEX:
+		case NPR_PRINTF_hex:
 			d = va_arg(ap, int);
 			dest[j].p = 0;
 			dest[j].u.si = d;
@@ -193,6 +239,7 @@ npr_printf_build_varg(struct npr_printf_arg *dest,
 		case NPR_PRINTF_LDIGIT:
 		case NPR_PRINTF_LUDIGIT:
 		case NPR_PRINTF_LHEX:
+		case NPR_PRINTF_lhex:
 			l = va_arg(ap, long);
 			dest[j].p = 0;
 			dest[j].u.sl = l;
@@ -202,6 +249,7 @@ npr_printf_build_varg(struct npr_printf_arg *dest,
 		case NPR_PRINTF_LLDIGIT:
 		case NPR_PRINTF_LLUDIGIT:
 		case NPR_PRINTF_LLHEX:
+		case NPR_PRINTF_llhex:
 			ll = va_arg(ap, long long);
 			dest[j].p = 0;
 			dest[j].u.sll = ll;
@@ -219,6 +267,13 @@ npr_printf_build_varg(struct npr_printf_arg *dest,
 			s = va_arg(ap, char*);
 			dest[j].p = s;
 			dest[j].u.si = strlen(s);
+			j++;
+			break;
+
+		case NPR_PRINTF_CHAR:
+			c = va_arg(ap, int);
+			dest[j].p = 0;
+			dest[j].u.c = c;
 			j++;
 			break;
 

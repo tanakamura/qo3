@@ -4,10 +4,11 @@ extern char _end[];
 static uintptr_t brk_pos;
 
 void *
-sbrk_align_shift(intptr_t inc, unsigned int shift)
+sbrk_align_shift(uintptr_t inc, unsigned int shift)
 {
-	uintptr_t mask = (((uintptr_t)1)<<shift)-1;
-	uintptr_t add = mask-1;
+	uintptr_t bit = (((uintptr_t)1)<<shift);
+	uintptr_t mask = ((uintptr_t)0)-bit;
+	uintptr_t add = bit-1;
 	void *ret;
 
 	brk_pos = (brk_pos + add) & mask;
@@ -20,3 +21,8 @@ sbrk_align_shift(intptr_t inc, unsigned int shift)
 	return ret;
 }
 
+void
+brk_init()
+{
+	brk_pos = (uintptr_t)_end;
+}

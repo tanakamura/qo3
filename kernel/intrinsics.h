@@ -30,6 +30,18 @@
                               :"=a"(ao),"=b"(b),"=c"(c),"=d"(d) \
                               :"a"(a))
 
+#define mwait(a,c)				\
+	__asm__ __volatile__ ("mwait"		\
+			      :			\
+			      :"a"(a), "c"(c))
+
+#define monitor(a,c,d)					\
+	__asm__ __volatile__ ("monitor"			\
+			      :				\
+			      :"a"(a), "c"(c), "d"(d))
+
+
+
 static inline unsigned char inb(unsigned short port)
 {
 	unsigned char a;
@@ -67,10 +79,13 @@ static inline void outl(unsigned short port, uint32_t val)
 #define hlt()                                   \
         __asm__ __volatile__ ("hlt")
 
-#define wiob()
+/* enforce io */
+#define eieio()
 
 /* force memory access to c compiler */
 #define cbarrier(v) __asm__ __volatile__(""::"r"(v))
+
+
 #define lfence() __asm__ __volatile__("lfence":::"memory")
 #define sfence() __asm__ __volatile__("sfence":::"memory")
 

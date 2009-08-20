@@ -1,6 +1,6 @@
 #include "hpet.h"
 #include "mmio.h"
-#include "acpi.h"
+#include "qo3-acpi.h"
 #include <stdio.h>
 
 uintptr_t hpet_base_addr;

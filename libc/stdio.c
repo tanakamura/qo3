@@ -12,8 +12,9 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
 	int num_fmt;
 	struct npr_printf_state st;
 	int is_fini, out_size;
+	struct npr_printf_build_format_error error;
 
-	num_fmt = npr_printf_build_format(fmt, 16, format, strlen(format));
+	num_fmt = npr_printf_build_format(fmt, 16, format, strlen(format), &error);
 
 	if ((num_fmt < 0) || (num_fmt >= 16)) {
 		while (1);
