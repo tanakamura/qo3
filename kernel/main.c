@@ -22,9 +22,14 @@
 #include "event.h"
 #include "acpi.h"
 #include "brk.h"
+#include "bios.h"
+#include "hda.h"
+#include "r8169.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
+
+static struct r8169_dev r8169_dev;
 
 static int
 serial_gets(char *buffer, int buflen)
@@ -208,33 +213,22 @@ do_hpetint(void)
 	uint32_t cnf;
 	int sec;
 	uint32_t ticks;
+	event_bits_t ready = 0;
 
 	/* enable replace legacy root */
 	cnf = HPET_READ(HPET_GEN_CONF);
 	cnf |= HPET_LEG_RT_CNF;
 	HPET_WRITE(HPET_GEN_CONF, cnf);
 
-	printf("enabled irq = %x\n", HPET_READ(HPET_TIM0_CONF_HI));
-
 	printf("sec?> ");
 	sec = read_int();
 
-	/* one shot, 32bit, interrupt enabled, irq=2, edge trigger */
-	cnf = HPET_CONF_32MODE_CNF|HPET_CONF_INT_ENB_CNF;
-	HPET_WRITE(HPET_TIM0_CONF, cnf);
-	ticks = sec * 1000 * hpet_freq_khz;
+	ticks = hpet_msec_to_tick(sec * 1000);
+	hpet_oneshot(ticks, 0, &ready, 1);
 
-	HPET_WRITE(HPET_MAIN_CNT, 0);
-	HPET_WRITE(HPET_TIM0_COMPARATOR, ticks);
+	wait_event(&ready, 1);
 
-
-	/* mask clear, edge trigger, interrupt hi, destination physical,
-	 * delivery fixed, vec=HPET0_VEC */
-	ioapic_set_redirect32(HPET0_IRQ,
-			      IOAPIC_DESTINATION_ID32(0),
-			      IOAPIC_DELIVERY_FIXED|IOAPIC_VECTOR(HPET0_VEC));
-
-	hpet_start();
+	puts("ok");
 }
 
 static void
@@ -399,10 +393,31 @@ do_acpi_sleep(void)
 static void
 do_reset(void)
 {
+	/*
 	ACPI_STATUS r = AcpiReset();
 	if (ACPI_FAILURE(r)) {
 		printf("reset: %s\n", AcpiFormatException(r));
 	}
+	*/
+	bios_system_reset();
+}
+
+static void
+do_hda_dump(void)
+{
+	hda_dump();
+}
+
+static void
+do_lspci(void)
+{
+        lspci(&pci_root0);
+}
+
+static void
+do_lspci_tree(void)
+{
+        lspci_tree(&pci_root0);
 }
 
 
@@ -431,7 +446,10 @@ static struct command commands[] = {
 	{NAME_LEN("async_get"), do_async_get},
 	{NAME_LEN("disablevga"), do_disablevga},
 	{NAME_LEN("enablevga"), do_enablevga},
-	{NAME_LEN("acpi_sleep"), do_acpi_sleep}
+	{NAME_LEN("acpi_sleep"), do_acpi_sleep},
+	{NAME_LEN("hda_dump"), do_hda_dump},
+        {NAME_LEN("lspci"), do_lspci},
+        {NAME_LEN("lspci_tree"), do_lspci_tree},
 };
 
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
@@ -501,6 +519,8 @@ cmain()
 	enum hpet_setup_error_code setup_hpet_error;
 	struct pci_init_error pci_error;
 	struct gma_init_error gma_error;
+	struct hda_init_error hda_err;
+        struct r8169_init_error r8169_err;
 
 	int i, j;
 	for (i=0; i<25; i++) {
@@ -548,6 +568,8 @@ cmain()
 		while (1) hlt();
 	}
 
+	acpi_start();
+
 	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
 	printf("num processor = %d\n", (int)apic_info.num_processor);
 
@@ -564,10 +586,20 @@ cmain()
 		}
 	}
 
-	r = pci_init(&pci_error);
+	r = pci_init(&pci_root0, &pci_error);
 	if (r < 0) {
 		puts("pci init error");
 	}
+
+	r = hda_init(&pci_root0, &hda_err);
+	if (r < 0) {
+		puts("hda init error");
+	}
+
+        r = r8169_init(&pci_root0, &r8169_dev, &r8169_err, 0);
+        if (r < 0) {
+                puts("r8169 init error");
+        }
 
 	/*
 	r = gma_init(&gma_error);
@@ -579,8 +611,6 @@ cmain()
 	(void)gma_error;
 
 	ns16550_init_intr();
-
-	acpi_start();
 
 	while(1) {
 		int len;

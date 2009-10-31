@@ -331,11 +331,14 @@ find_acpi_description_entry(uint32_t sig)
 
 	return 0;
 }
-
+extern void *AcpiGbl_RootNode;
 void
 acpi_start(void)
 {
 	ACPI_STATUS r;
+        ACPI_OBJECT obj;
+        ACPI_OBJECT_LIST pic_args = {1, &obj};
+
 	//AcpiDbgLevel = ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_VERBOSITY1;
 	r = AcpiInitializeSubsystem();
 	if (ACPI_FAILURE(r)) {
@@ -370,4 +373,13 @@ acpi_start(void)
 		bios_system_reset();
 	}
 
+        obj.Type = ACPI_TYPE_INTEGER;
+        obj.Integer.Value = 1;  /* io apic */
+
+        r = AcpiEvaluateObject(NULL, "\\_PIC", &pic_args, NULL);
+
+	if (ACPI_FAILURE(r)) {
+		printf("set ioapic: %s", AcpiFormatException(r));
+		bios_system_reset();
+	}
 }

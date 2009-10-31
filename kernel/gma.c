@@ -28,11 +28,11 @@ static struct gma_dev gma;
 #define GMA_MW8(R,V) (mmio_write8(gma_mmio_base + (R), V))
 
 int
-gma_init(struct gma_init_error *error)
+gma_init(struct pci_root *pci, struct gma_init_error *error)
 {
 	int i;
-	int n = pci_num_dev;
-	struct pci_device *p = pci_devices;
+	int n = pci->num_dev;
+	struct pci_device *p = pci->devices;
 	uintptr_t gma_mmio_base;
 	for (i=0; i<n; i++) {
 		if (p[i].vendor_id == 0x8086) {
@@ -49,7 +49,7 @@ gma_init(struct gma_init_error *error)
 		error->code = GMA_NOT_FOUND;
 		return -1;
 	}
-	p = pci_devices + i;
+	p = pci->devices + i;
 	gma_mmio_base = pci_conf_read32(p, 0x10);
 
 	printf("id = %08x, mmio base=%08x, io base=%08x gmaddr=%08x gttaddr=%08x cmd=%08x\n",

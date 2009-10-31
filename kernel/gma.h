@@ -12,7 +12,8 @@ struct gma_init_error {
 	enum gma_init_error_code code;
 };
 
-int gma_init(struct gma_init_error *error);
+struct pci_root;
+int gma_init(struct pci_root *root, struct gma_init_error *error);
 
 void gma_setmode(int width, int height);
 

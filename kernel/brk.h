@@ -33,6 +33,7 @@ void *sbrk_size(uintptr_t inc)
 #define SBRK_TA(type, nelem) sbrk_align(sizeof(type)*(nelem), sizeof(type))
 #define SBRK_TA4(type, nelem) sbrk_align4(sizeof(type)*(nelem))
 #define SBRK_TA8(type, nelem) sbrk_align8(sizeof(type)*(nelem))
+#define SBRK_TANATIVE(type, nelem) sbrk_align8(sizeof(type)*(nelem))
 
 #define SBRK_T(type) sbrk_size(sizeof(type),sizeof(type))
 

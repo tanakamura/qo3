@@ -193,15 +193,15 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *id,
 	unsigned int f = id->Function;
 	switch (wid) {
 	case 32:
-		*(UINT32*)val = pci_conf_read32_bdf(b,d,f,reg);
+		*(UINT32*)val = pci_conf_read32_bdf(&pci_root0, b,d,f,reg);
 		break;
 
 	case 16:
-		*(UINT16*)val = pci_conf_read16_bdf(b,d,f,reg);
+		*(UINT16*)val = pci_conf_read16_bdf(&pci_root0, b,d,f,reg);
 		break;
 
 	case 8:
-		*(UINT8*)val = pci_conf_read8_bdf(b,d,f,reg);
+		*(UINT8*)val = pci_conf_read8_bdf(&pci_root0, b,d,f,reg);
 		break;
 
 	case 64:

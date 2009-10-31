@@ -2,6 +2,7 @@
 #define QO3_KERNEL_HPET_H
 
 #include <stdint.h>
+#include <event.h>
 
 #define HPET_GCAP	0x0000
 #define HPET_GCAP_HI	0x0004
@@ -49,9 +50,27 @@
 #define HPET_CONF_INT_TYPE_CNF (1<<1)
 /* 0 reserved */
 
+typedef unsigned int hpet_tick_t;
 
-void hpet_stop(void);
 void hpet_start(void);
+void hpet_stop(void);
+
+void hpet_register_event(int comparator,
+			 event_bits_t *ready_ptr,
+			 event_bits_t ready_bits);
+
+hpet_tick_t hpet_usec_to_tick(unsigned int usec);
+hpet_tick_t hpet_msec_to_tick(unsigned int msec);
+
+/* 1. setup comparator
+ * 2. setup intrrupt handler
+ * 3. start counter(?) // 
+ */
+void hpet_oneshot(hpet_tick_t ticks,
+		  int comparator,
+		  event_bits_t *ready_ptr,
+		  event_bits_t ready_bits);
+
 
 enum hpet_setup_error_code {
 	HPET_SETUP_NOT_FOUND,
