@@ -17,7 +17,7 @@ struct pci_init_error {
 struct pci_root;
 /* return negative if failed */
 int pci_init(struct pci_root *pci,
-             struct pci_init_error *error);
+	     struct pci_init_error *error);
 
 typedef uintptr_t busdevfn_t;
 #define BDF_BUS(x) (((x)>>20)&0xff)
@@ -33,35 +33,35 @@ struct pci_device {
 };
 
 struct pci_irq_table {
-        int addr;
-        int irq[4];
+	int addr;
+	int irq[4];
 };
 
 struct pci_bridge {
-        int devid;
-        int num_irq_table;
-        struct pci_irq_table *irq_table;
+	int devid;
+	int num_irq_table;
+	struct pci_irq_table *irq_table;
 };
 
 struct pci_root {
-        uintptr_t mcfg_addr;
-        int num_dev;
-        struct pci_device *devices;
-        int num_bridge;
-        struct pci_bridge *bridges;
+	uintptr_t mcfg_addr;
+	int num_dev;
+	struct pci_device *devices;
+	int num_bridge;
+	struct pci_bridge *bridges;
 
-        /* brdid is offset of bridges
-         *
-         * | brdid | busno   | num_child | offset of | offset of | brdid  | busno | num_child of |     |
-         * | of    | of root | of root   | child0    | child1    | of     | of    | child0       | ... |
-         * | root  | 0       | 2         | 5         | ...       | child0 | c0    | ...          |     |
-         */
+	/* brdid is offset of bridges
+	 *
+	 * | brdid | busno   | num_child | offset of | offset of | brdid  | busno | num_child of |     |
+	 * | of	   | of root | of root	 | child0    | child1	 | of	  | of	  | child0	 | ... |
+	 * | root  | 0	     | 2	 | 5	     | ...	 | child0 | c0	  | ...		 |     |
+	 */
 #define PCITREE_SIZEOF_NODE 3
 #define PCITREE_OFFSET_BRIDGEID 0
 #define PCITREE_OFFSET_BUSNO 1
 #define PCITREE_OFFSET_NUM_CHILD 2
 
-        int *tree;
+	int *tree;
 };
 
 extern struct pci_root pci_root0;
@@ -87,7 +87,7 @@ pci_conf_read8(struct pci_device *d, int reg)
 
 static inline uintptr_t
 pci_bdf_to_addr(struct pci_root *pci,
-                unsigned int bus,
+		unsigned int bus,
 		unsigned int dev,
 		unsigned int fn)
 {
@@ -100,7 +100,7 @@ pci_bdf_to_addr(struct pci_root *pci,
 
 static inline uint32_t
 pci_conf_read32_bdf(struct pci_root *pci,
-                    unsigned int bus,
+		    unsigned int bus,
 		    unsigned int dev,
 		    unsigned int fn,
 		    int reg)
@@ -110,7 +110,7 @@ pci_conf_read32_bdf(struct pci_root *pci,
 }
 static inline uint16_t
 pci_conf_read16_bdf(struct pci_root *pci,
-                    unsigned int bus,
+		    unsigned int bus,
 		    unsigned int dev,
 		    unsigned int fn,
 		    int reg)
@@ -120,7 +120,7 @@ pci_conf_read16_bdf(struct pci_root *pci,
 }
 static inline uint8_t
 pci_conf_read8_bdf(struct pci_root *pci,
-                   unsigned int bus,
+		   unsigned int bus,
 		   unsigned int dev,
 		   unsigned int fn,
 		   int reg)

@@ -336,8 +336,8 @@ void
 acpi_start(void)
 {
 	ACPI_STATUS r;
-        ACPI_OBJECT obj;
-        ACPI_OBJECT_LIST pic_args = {1, &obj};
+	ACPI_OBJECT obj;
+	ACPI_OBJECT_LIST pic_args = {1, &obj};
 
 	//AcpiDbgLevel = ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_VERBOSITY1;
 	r = AcpiInitializeSubsystem();
@@ -373,10 +373,10 @@ acpi_start(void)
 		bios_system_reset();
 	}
 
-        obj.Type = ACPI_TYPE_INTEGER;
-        obj.Integer.Value = 1;  /* io apic */
+	obj.Type = ACPI_TYPE_INTEGER;
+	obj.Integer.Value = 1;	/* io apic */
 
-        r = AcpiEvaluateObject(NULL, "\\_PIC", &pic_args, NULL);
+	r = AcpiEvaluateObject(NULL, "\\_PIC", &pic_args, NULL);
 
 	if (ACPI_FAILURE(r)) {
 		printf("set ioapic: %s", AcpiFormatException(r));

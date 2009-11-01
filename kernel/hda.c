@@ -17,23 +17,23 @@
 #define CORBSIZE_64 0x1
 #define CORBSIZE_1024 0x2
 
-#define CORBLBASE 0x40          /* 4byte */
-#define CORBUBASE 0x44          /* 4byte */
-#define CORBRP 0x4a             /* 2byte */
+#define CORBLBASE 0x40		/* 4byte */
+#define CORBUBASE 0x44		/* 4byte */
+#define CORBRP 0x4a		/* 2byte */
 #define CORBRP_RESET (1<<15)
-#define CORBWP 0x48             /* 2byte */
-#define CORBSIZE 0x4e           /* 1byte */
+#define CORBWP 0x48		/* 2byte */
+#define CORBSIZE 0x4e		/* 1byte */
 
 
 #define RIRBSIZE_16 0x0
 #define RIRBSIZE_128 0x1
 #define RIRBSIZE_2048 0x2
 
-#define RIRBLBASE 0x50          /* 4byte */
-#define RIRBUBASE 0x54          /* 4byte */
-#define RIRBWP 0x58             /* 2byte */
+#define RIRBLBASE 0x50		/* 4byte */
+#define RIRBUBASE 0x54		/* 4byte */
+#define RIRBWP 0x58		/* 2byte */
 #define RIRBWP_RESET (1<<15)
-#define RIRBSIZE 0x5e           /* 1byte */
+#define RIRBSIZE 0x5e		/* 1byte */
 
 
 #define CORBCTL 0x4c
@@ -133,16 +133,16 @@ hda_init(struct pci_root *pci, struct hda_init_error *err)
 
 	mmio_write16(base + WAKEEN, 0);
 
-        mmio_write32(base + CORBLBASE, (uint32_t)corb);
-        mmio_write32(base + CORBUBASE, 0);
-        mmio_write32(base + CORBSIZE, CORBSIZE_1024);
-        mmio_write32(base + CORBRP, CORBRP_RESET);
-        mmio_write32(base + CORBWP, 0);
-        mmio_write32(base + RIRBWP, RIRBWP_RESET);
+	mmio_write32(base + CORBLBASE, (uint32_t)corb);
+	mmio_write32(base + CORBUBASE, 0);
+	mmio_write32(base + CORBSIZE, CORBSIZE_1024);
+	mmio_write32(base + CORBRP, CORBRP_RESET);
+	mmio_write32(base + CORBWP, 0);
+	mmio_write32(base + RIRBWP, RIRBWP_RESET);
 
-        mmio_write32(base + RIRBLBASE, (uint32_t)rirb);
-        mmio_write32(base + RIRBUBASE, 0);
-        mmio_write32(base + RIRBSIZE, RIRBSIZE_2048);
+	mmio_write32(base + RIRBLBASE, (uint32_t)rirb);
+	mmio_write32(base + RIRBUBASE, 0);
+	mmio_write32(base + RIRBSIZE, RIRBSIZE_2048);
 
 	return 0;
 }

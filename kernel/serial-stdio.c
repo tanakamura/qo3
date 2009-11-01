@@ -11,7 +11,7 @@ int
 vprintf(const char *format,
 	va_list ap)
 {
-        char buffer[BUFSIZE];
+	char buffer[BUFSIZE];
 	struct npr_printf_format fmt[32];
 	struct npr_printf_arg args[32];
 	int num_fmt;
@@ -60,8 +60,8 @@ puts(const char *str)
 	char crlf[] = "\r\n";
 	int len = strlen(str);
 
-        ns16550_write_poll(str, len);
-        ns16550_write_poll(crlf, 2);
+	ns16550_write_poll(str, len);
+	ns16550_write_poll(crlf, 2);
 
 	return len+2;
 }

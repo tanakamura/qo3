@@ -134,13 +134,13 @@ boot_ap(void)
 	sfence();
 
 	/* send INIT 
-	 *      0    0    0    c    4    5    0    0
+	 *	0    0	  0    c    4	 5    0	   0
 	 * 0b0000 0000 0000 1100 0100 0101 0000 0000 */
 	write_local_apic(LAPIC_ICR0, 0x000c4500);
 	/* wait 10msec */
 	wait_msec(10);
 	/* send startup 
-	 *      0    0    0    c    4    6    addr 
+	 *	0    0	  0    c    4	 6    addr 
 	 * 0b0000 0000 0000 1100 0100 0110 xxxx xxxx */
 	write_local_apic(LAPIC_ICR0, 0x000c4600 | addr);
 	/* wait 200usec */
@@ -411,13 +411,13 @@ do_hda_dump(void)
 static void
 do_lspci(void)
 {
-        lspci(&pci_root0);
+	lspci(&pci_root0);
 }
 
 static void
 do_lspci_tree(void)
 {
-        lspci_tree(&pci_root0);
+	lspci_tree(&pci_root0);
 }
 
 
@@ -448,8 +448,8 @@ static struct command commands[] = {
 	{NAME_LEN("enablevga"), do_enablevga},
 	{NAME_LEN("acpi_sleep"), do_acpi_sleep},
 	{NAME_LEN("hda_dump"), do_hda_dump},
-        {NAME_LEN("lspci"), do_lspci},
-        {NAME_LEN("lspci_tree"), do_lspci_tree},
+	{NAME_LEN("lspci"), do_lspci},
+	{NAME_LEN("lspci_tree"), do_lspci_tree},
 };
 
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
@@ -520,7 +520,7 @@ cmain()
 	struct pci_init_error pci_error;
 	struct gma_init_error gma_error;
 	struct hda_init_error hda_err;
-        struct r8169_init_error r8169_err;
+	struct r8169_init_error r8169_err;
 
 	int i, j;
 	for (i=0; i<25; i++) {
@@ -596,10 +596,10 @@ cmain()
 		puts("hda init error");
 	}
 
-        r = r8169_init(&pci_root0, &r8169_dev, &r8169_err, 0);
-        if (r < 0) {
-                puts("r8169 init error");
-        }
+	r = r8169_init(&pci_root0, &r8169_dev, &r8169_err, 0);
+	if (r < 0) {
+		puts("r8169 init error");
+	}
 
 	/*
 	r = gma_init(&gma_error);

@@ -11,7 +11,8 @@ struct r8169_init_error {
 };
 
 struct r8169_dev {
-        uintptr_t mmio_base;
+	uintptr_t mmio_base;
+	unsigned char mac[6];
 };
 
 /* return negative if failed
@@ -19,8 +20,8 @@ struct r8169_dev {
  */
 struct pci_root;
 int r8169_init(struct pci_root *pci,
-               struct r8169_dev *dev,
-               struct r8169_init_error *error,
-               int pci_start);
+	       struct r8169_dev *dev,
+	       struct r8169_init_error *error,
+	       int pci_start);
 
 #endif

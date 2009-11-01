@@ -3,32 +3,32 @@
 
 #include <stdint.h>
 
-#define rdmsr(c,a,d)                                            \
-        __asm__ __volatile__ ("rdmsr"                           \
-                              :"=a"(a),"=d"(d)                  \
-                              :"c"(c))
+#define rdmsr(c,a,d)						\
+	__asm__ __volatile__ ("rdmsr"				\
+			      :"=a"(a),"=d"(d)			\
+			      :"c"(c))
 
-#define rdmsrll(c,ll)                                            \
-        __asm__ __volatile__ ("rdmsr"                            \
-                              :"=A"(ll)                          \
-                              :"c"(c))
+#define rdmsrll(c,ll)						 \
+	__asm__ __volatile__ ("rdmsr"				 \
+			      :"=A"(ll)				 \
+			      :"c"(c))
 
 
-#define wrmsr(c,a,d)                                            \
-        __asm__ __volatile__ ("rdmsr"                           \
+#define wrmsr(c,a,d)						\
+	__asm__ __volatile__ ("rdmsr"				\
 			      :					\
-                              :"a"(a),"d"(d),"c"(c))
+			      :"a"(a),"d"(d),"c"(c))
 
-#define wrmsrll(c,ll)                                            \
-        __asm__ __volatile__ ("rdmsr"                            \
+#define wrmsrll(c,ll)						 \
+	__asm__ __volatile__ ("rdmsr"				 \
 			      :					 \
-                              :"A"(ll),"c"(c))
+			      :"A"(ll),"c"(c))
 
 
 #define cpuid(a,ao,b,c,d) \
-        __asm__ __volatile__ ("cpuid"                           \
-                              :"=a"(ao),"=b"(b),"=c"(c),"=d"(d) \
-                              :"a"(a))
+	__asm__ __volatile__ ("cpuid"				\
+			      :"=a"(ao),"=b"(b),"=c"(c),"=d"(d) \
+			      :"a"(a))
 
 #define mwait(a,c)				\
 	__asm__ __volatile__ ("mwait"		\
@@ -76,8 +76,8 @@ static inline void outl(unsigned short port, uint32_t val)
 
 
 
-#define hlt()                                   \
-        __asm__ __volatile__ ("hlt")
+#define hlt()					\
+	__asm__ __volatile__ ("hlt")
 
 /* enforce io */
 #define eieio()
