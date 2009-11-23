@@ -74,7 +74,12 @@ static inline void outl(unsigned short port, uint32_t val)
 	__asm__ __volatile__ ("outl %0, %1":: "a"(val), "Nd"(port));
 }
 
-
+#define in8 inb
+#define in16 inw
+#define in32 inl
+#define out8 outb
+#define out16 outw
+#define out32 outl
 
 #define hlt()					\
 	__asm__ __volatile__ ("hlt")
@@ -85,8 +90,42 @@ static inline void outl(unsigned short port, uint32_t val)
 /* force memory access to c compiler */
 #define cbarrier(v) __asm__ __volatile__(""::"r"(v))
 
-
 #define lfence() __asm__ __volatile__("lfence":::"memory")
 #define sfence() __asm__ __volatile__("sfence":::"memory")
+#define mfence() __asm__ __volatile__("mfence":::"memory")
+
+static inline uint16_t
+movbe_load16(uint16_t *addr)
+{
+	uint16_t r;
+	__asm__ __volatile__ ("movbew %1,%0"
+			      :"=r"(r)
+			      :"m"(addr));
+	return r;
+}
+static inline uint32_t
+movbe_load32(uint32_t *addr)
+{
+	uint32_t r;
+	__asm__ __volatile__ ("movbel %1,%0"
+			      :"=r"(r)
+			      :"m"(addr));
+	return r;
+}
+
+static inline void
+movbe_store16(uint16_t *addr, uint16_t v)
+{
+	__asm__ __volatile__ ("movbew %1,%0"
+			      :"=m"(*addr)
+			      :"r"(v));
+}
+static inline void
+movbe_store32(uint32_t *addr, uint32_t v)
+{
+	__asm__ __volatile__ ("movbel %1,%0"
+			      :	"=m"(*addr)
+			      : "r"(v));
+}
 
 #endif

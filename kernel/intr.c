@@ -1,16 +1,18 @@
-#include "intr.h"
+#include "kernel/intr.h"
 #include <stdio.h>
-#include "intrinsics.h"
+#include "kernel/brk.h"
+#include "kernel/intrinsics.h"
 
 void
 fatal(void)
 {
 	int c;
+	puts("fatal!");
+	dump_brk();
 	while (1) {
 		monitor(&c, 0, 0);
 		mwait(3<<4|2, 0);
 	}
-	
 }
 
 void
@@ -20,10 +22,23 @@ cdiv_error(void)
 	fatal();
 }
 
-void
-cinvalid_opcode(void)
+static void
+dump_inst(uintptr_t eip, uintptr_t cs)
 {
-	puts("invalid opcode");
+	int i;
+	for (i=0; i<10; i++) {
+		printf("%02x ", *(unsigned char*)(eip+i));
+	}
+	puts("");
+}
+
+void
+cinvalid_opcode(int edi, int esi, int ebp, int esp,
+		int ebx, int edx, int ecx, int eax,
+		int eip, int cs, int eflags)
+{
+	dump_inst(eip, cs);
+	printf("invalid opcode: %x, %x\n", eip, cs);
 	fatal();
 }
 
@@ -83,4 +98,5 @@ cgeneral_protection(int edi, int esi, int ebp, int esp,
 	(void)eip;
 
 	printf("general protection %x\n", errcode);
+	fatal();
 }

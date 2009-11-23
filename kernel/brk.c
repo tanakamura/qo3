@@ -1,4 +1,5 @@
 #include "brk.h"
+#include <stdio.h>
 
 extern char _end[];
 static uintptr_t brk_pos;
@@ -25,4 +26,11 @@ void
 brk_init()
 {
 	brk_pos = (uintptr_t)_end;
+}
+
+void
+dump_brk(void)
+{
+	printf("brk used: %ld bytes\n",
+	       brk_pos - (uintptr_t)_end);
 }

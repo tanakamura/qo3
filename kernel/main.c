@@ -1,9 +1,9 @@
-#include <pmmintrin.h>
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "kernel/fatal.h"
 #include "ns16550.h"
 #include "intrinsics.h"
 #include "vga.h"
@@ -24,12 +24,16 @@
 #include "brk.h"
 #include "bios.h"
 #include "hda.h"
-#include "r8169.h"
+#include "kernel/net/r8169.h"
+#include "kernel/uhci.h"
+#include "kernel/net/tcpip.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
 
 static struct r8169_dev r8169_dev;
+static struct uhci_dev uhci_dev;
+static struct tcpip_link_state tcpip_link;
 
 static int
 serial_gets(char *buffer, int buflen)
@@ -40,7 +44,7 @@ serial_gets(char *buffer, int buflen)
 		event_bits_t ready = 0;
 
 		ns16550_read(&c, 1, &ready, (1<<0));
-		wait_event(&ready, (1<<0));
+		wait_event_any(&ready, (1<<0));
 
 		ns16550_write_poll(&c, 1);
 
@@ -226,7 +230,7 @@ do_hpetint(void)
 	ticks = hpet_msec_to_tick(sec * 1000);
 	hpet_oneshot(ticks, 0, &ready, 1);
 
-	wait_event(&ready, 1);
+	wait_event_any(&ready, 1);
 
 	puts("ok");
 }
@@ -352,7 +356,7 @@ do_async_get(void)
 
 	ns16550_read(buffer, 2, &ready, (1<<0));
 
-	wait_event(&ready, (1<<0));
+	wait_event_any(&ready, (1<<0));
 	buffer[2] = '\0';
 	printf("ok: %s\n", buffer);
 }
@@ -420,6 +424,98 @@ do_lspci_tree(void)
 	lspci_tree(&pci_root0);
 }
 
+static void
+do_r8169_dump(void)
+{
+	r8169_dump(&r8169_dev);
+}
+
+static unsigned char buffer[4096] __attribute__((aligned(4096)));
+static unsigned char buffer_many[16][4096] __attribute__((aligned(4096)));
+
+static void
+do_r8169_tx(void)
+{
+	int i;
+
+	for (i=0; i<10; i++) {
+		event_bits_t done = 0;
+		r8169_tx_packet(&r8169_dev,
+				buffer, 28+14, 0,
+				&done, 1);
+		wait_event_any(&done, 1);
+	}
+}
+
+static void
+do_r8169_rx(void)
+{
+	uint32_t flags;
+	event_bits_t done = 0;
+	int i,j,len;
+
+	event_bits_t bits = 1<<0;
+
+	r8169_rx_packet(&r8169_dev, buffer, 1024, &flags,
+			&done, bits);
+
+	wait_event_any(&done, (1<<0));
+
+	len = flags & ((1<<14)-1);
+	for (i=0; i<(len+15)/16; i++) {
+		printf("%04x: ", i*16);
+		for (j=0; j<16; j++) {
+			printf("%02x ", buffer[i*16+j]);
+		}
+	}
+}
+
+static void
+do_tcpip_dump(void)
+{
+	tcpip_dump(&tcpip_link);
+}
+
+static void
+do_tcpip_rs(void)
+{
+	int len = tcpip_build_rs(buffer, &tcpip_link);
+	uint32_t flags;
+	event_bits_t done = 0;
+	struct tcpip_parse_result parse;
+
+	R8169_RX_CLEAR_COMPLETE(flags);
+	r8169_rx_packet(&r8169_dev, buffer_many[0], 1024, &flags,
+			&done, 2);
+	r8169_tx_packet(&r8169_dev,
+			buffer, len, 0,
+			&done, 1);
+
+	while (1) {
+		ns16550_read(buffer_many[1], 1, &done, 4);
+		wait_event_any(&done, 2|4);
+
+		if (done&4) {
+			if (buffer_many[1][0] == 'q') {
+				return;
+			}
+
+			__sync_and_and_fetch(&done, ~4);
+		}
+
+		if (done & 2) {
+			break;
+		}
+	}
+
+	len = flags & ((1<<14)-1);
+	printf("%x %x\n", flags, done);
+	tcpip_parse_packet(&tcpip_link, buffer_many[0], len, &parse);
+
+	printf("%d\n", (int)parse.code);
+
+	wait_event_all(&done, 1);
+}
 
 #define NAME_LEN(name) name, sizeof(name)-1
 static void do_help(void);
@@ -450,6 +546,12 @@ static struct command commands[] = {
 	{NAME_LEN("hda_dump"), do_hda_dump},
 	{NAME_LEN("lspci"), do_lspci},
 	{NAME_LEN("lspci_tree"), do_lspci_tree},
+	{NAME_LEN("r8169_dump"), do_r8169_dump},
+	{NAME_LEN("r8169_tx"), do_r8169_tx},
+	{NAME_LEN("r8169_rx"), do_r8169_rx},
+
+	{NAME_LEN("tcpip_dump"), do_tcpip_dump},
+	{NAME_LEN("tcpip_rs"), do_tcpip_rs}
 };
 
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
@@ -521,6 +623,7 @@ cmain()
 	struct gma_init_error gma_error;
 	struct hda_init_error hda_err;
 	struct r8169_init_error r8169_err;
+	struct uhci_init_error uhci_err;
 
 	int i, j;
 	for (i=0; i<25; i++) {
@@ -610,7 +713,14 @@ cmain()
 	*/
 	(void)gma_error;
 
+	r = uhci_init(&pci_root0, &uhci_dev, &uhci_err, 0);
+	if (r < 0) {
+		puts("uhci init error");
+	}
+
 	ns16550_init_intr();
+
+	tcpip_init(&tcpip_link, r8169_dev.mac);
 
 	while(1) {
 		int len;

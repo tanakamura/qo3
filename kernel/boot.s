@@ -151,14 +151,20 @@ idt:
 	idt_entry(ns16550_intr)	; 67 com0
 	idt_entry(acpi_intr)	; 68 acpi
 
+%assign vec 16
+%rep (8)
+	idt_entry(pci_irq %+ vec) ; 69-76 pci irq
+%assign vec vec+1
+%endrep
+
 %macro gen_handler 2
-
-
 %1:
 	extern %2
 	pushad
+	fxsave	[xsave_buffer]
 	call	%2
 	popad
+	fxrstor	[xsave_buffer]
 	iretd
 %endmacro
 
@@ -166,9 +172,12 @@ idt:
 %1:
 	extern %2
 	pushad
+	fxsave	[xsave_buffer]
 	push	%3
 	call	%2
+	add	esp, 4
 	popad
+	fxrstor	[xsave_buffer]
 	iretd
 %endmacro
 
@@ -206,16 +215,30 @@ idt:
 	gen_handler machine_check, cmachine_check
 	gen_handler simd_float, csimd_float
 
+%assign	vec 16
+%rep (8)
+	gen_handler_code pci_irq %+ vec, pci_irq, vec
+%assign vec vec+1
+%endrep
+
+
 
 general_protection:
 	extern	cgeneral_protection
 	pushad
+	fxsave	[xsave_buffer]
 	call	cgeneral_protection
 	popad
+	fxrstor	[xsave_buffer]
 	add	esp, 4 ; errcode
 	iretd
 
 	SECTION .bss
+
+	align	16
+xsave_buffer:
+	resb	512
+
 stack:
 	resb	STACK_SIZE
 	global	have_too_many_cpus

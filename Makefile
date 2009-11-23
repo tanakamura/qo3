@@ -4,9 +4,9 @@ all: do-it-all
 AS=nasm
 ASFLAGS=-felf32 
 CPPFLAGS=-D__QO3__=1
-COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m32 -msse3 -Wno-unused-parameter
+COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m32 -Wno-unused-parameter -mssse3
 INCLUDES=-I./
-CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES) -Os -fno-strict-aliasing -s
+CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES) -Os -fno-strict-aliasing
 CXXFLAGS=$(COMMON_CFLAGS)
 LDFLAGS=-nostdlib -m32 -Wl,-Ttext,100000 -lgcc -Wl,-Map,QO3.map -s
 

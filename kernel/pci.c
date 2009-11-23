@@ -12,6 +12,7 @@
 
 struct pci_root pci_root0;
 
+#if 1
 static int
 acpi_handle_to_bridge(struct pci_root *pci,
 		      ACPI_HANDLE obj)
@@ -19,7 +20,7 @@ acpi_handle_to_bridge(struct pci_root *pci,
 	ACPI_BUFFER buf;
 	ACPI_HANDLE parent;
 	ACPI_STATUS st;
-	char *p;	/* ... */
+	char *p;
 	int node, i, n, *tree;
 	unsigned int dev, fn;
 	ACPI_OBJECT adr;
@@ -37,6 +38,7 @@ acpi_handle_to_bridge(struct pci_root *pci,
 	    ((strcmp(p,"PNP0A03") == 0) ||
 	     (strcmp(p,"PNP0A08") == 0)) )
 	{
+		/* root bridge */
 		return 0;
 	}
 
@@ -206,9 +208,9 @@ build_tree(int *tree,
 
 				tree[child_offset+PCITREE_OFFSET_BRIDGEID] = *bridge_id;
 				bridges[*bridge_id].devid = i;
+				bridges[*bridge_id].busno = bus;
 
 				(*bridge_id)++;
-				tree[child_offset+PCITREE_OFFSET_BUSNO] = bus;
 
 				num_child = build_tree(tree,
 						       bridges, bridge_id,
@@ -324,7 +326,7 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 			uintptr_t mmio_addr = address | bus | dev;
 			uint32_t id = mmio_read32(mmio_addr);
 			uint32_t header;
-			uint8_t bcc,scc;
+			uint8_t bcc,scc,pi;
 
 			if (id == 0xffffffff || id == 0) {
 				continue;
@@ -332,12 +334,14 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 
 			bcc = mmio_read8(mmio_addr + 0x0b);
 			scc = mmio_read8(mmio_addr + 0x0a);
+			pi = mmio_read8(mmio_addr + 0x09);
 
 			pci->devices[cur_dev].busdevfn = mmio_addr;
 			pci->devices[cur_dev].vendor_id = id&0xffff;
 			pci->devices[cur_dev].device_id = id>>16U;
 			pci->devices[cur_dev].bcc = bcc;
 			pci->devices[cur_dev].scc = scc;
+			pci->devices[cur_dev].pi = pi;
 
 			cur_dev++;
 
@@ -353,12 +357,14 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 					}
 					bcc = mmio_read8(mmio_addr + 0x0b);
 					scc = mmio_read8(mmio_addr + 0x0a);
+					pi = mmio_read8(mmio_addr + 0x09);
 
 					pci->devices[cur_dev].busdevfn = mmio_addr;
 					pci->devices[cur_dev].vendor_id = id&0xffff;
 					pci->devices[cur_dev].device_id = id>>16U;
 					pci->devices[cur_dev].bcc = bcc;
 					pci->devices[cur_dev].scc = scc;
+					pci->devices[cur_dev].pi = pi;
 
 					cur_dev++;
 				}
@@ -388,15 +394,16 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 	tree = SBRK_TA(int, num_bridge*PCITREE_SIZEOF_NODE + (num_bridge-1)*1);
 
 	bridges[0].devid = host_bridge;
+	bridges[0].busno = 0;
 	tree[0] = 0;
 	bridge_id = 1;		/* 0 for root */
 
-	tree[1] = 0;
 	num_child = build_tree(tree, bridges, &bridge_id, devs, num_dev, 0, 3);
-	tree[2] = num_child;
+	tree[1] = num_child;
 
 	pci->tree = tree;
 	pci->bridges = bridges;
+	pci->num_bridge = num_bridge;
 
 	AcpiWalkNamespace(ACPI_TYPE_ANY,
 			  ACPI_ROOT_OBJECT,
@@ -410,6 +417,172 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 	}
 
 	return 0;
+}
+#else
+
+static inline uint32_t
+conf32(int bus, int dev, int fn, int reg)
+{
+	outl(0xcf8,
+	     0x80000000 |
+	     (bus<<16) |
+	     (dev<<(8+3)) |
+	     (fn<<8) |
+	     (reg & 0xfc));
+
+	return inl(0xcfc);
+}
+static inline uint16_t
+conf16(int bus, int dev, int fn, int reg)
+{
+	outl(0xcf8,
+	     0x80000000 |
+	     (bus<<16) |
+	     (dev<<(8+3)) |
+	     (fn<<8) |
+	     (reg & 0xfc));
+
+	return inw(0xcfc + (reg&2));
+}
+static inline uint8_t
+conf8(int bus, int dev, int fn, int reg)
+{
+	outl(0xcf8,
+	     0x80000000 |
+	     (bus<<16) |
+	     (dev<<(8+3)) |
+	     (fn<<8) |
+	     (reg & 0xfc));
+
+	return inb(0xcfc + (reg&3));
+}
+
+int
+pci_init(struct pci_root *pci, struct pci_init_error *error)
+{
+	uintptr_t bus, dev;
+	unsigned int num_dev = 0, cur_dev;
+
+	for (bus=0; bus<256; bus++) {
+		for (dev=0; dev<32; dev++) {
+			uint32_t id, header;
+			id = conf32(bus, dev, 0, 0);
+
+			if (id == 0xffffffff || id == 0) {
+				continue;
+			}
+			num_dev++;
+
+			header = conf32(bus, dev, 0, 0x0e);
+			if (header & 0x80) {
+				uintptr_t fn;
+				for (fn = 1; fn<8; fn++) {
+					id = conf32(bus, dev, fn, 0);
+					if (id == 0xffffffff || id == 0) {
+						continue;
+					}
+					num_dev++;
+				}
+			}
+		}
+	}
+	pci->devices = SBRK_TANATIVE(struct pci_device, num_dev);
+	pci->num_dev = num_dev;
+	cur_dev = 0;
+
+	for (bus=0; bus<255; bus++) {
+		uintptr_t dev;
+		for (dev=0; dev<32; dev++) {
+			uint32_t id = conf32(bus, dev, 0, 0);
+			uint32_t header;
+			uint8_t bcc,scc,pi;
+
+			if (id == 0xffffffff || id == 0) {
+				continue;
+			}
+
+			bcc = conf8(bus, dev, 0, 0x0b);
+			scc = conf8(bus, dev, 0, 0x0a);
+			pi = conf8(bus, dev, 0, 0x09);
+			/*
+			for (int i=0; i<16; i++) {
+				printf("%08x: ", i*16);
+				for (int j=0; j<16; j++) {
+					printf("%02x ", conf8(bus, dev, 0, j+i*16));
+				}
+				puts("");
+			}
+			printf("%04x:%04x %x %x %x\n", (int)bus, (int)dev, bcc, scc, pi);
+			*/
+
+			pci->devices[cur_dev].busdevfn = (bus<<20)|(dev<<15)|(0<<12);
+			pci->devices[cur_dev].vendor_id = id&0xffff;
+			pci->devices[cur_dev].device_id = id>>16U;
+			pci->devices[cur_dev].bcc = bcc;
+			pci->devices[cur_dev].scc = scc;
+			pci->devices[cur_dev].pi = pi;
+
+			cur_dev++;
+
+			header = conf32(bus, dev, 0, 0x0e);
+			if (header & 0x80) {
+				uintptr_t fn;
+				for (fn = 1; fn<8; fn++) {
+					id = conf32(bus, dev, fn, 0);
+					if (id == 0xffffffff || id == 0) {
+						continue;
+					}
+					bcc = conf8(bus, dev, fn, 0x0b);
+					scc = conf8(bus, dev, fn, 0x0a);
+					pi = conf8(bus, dev, fn, 0x09);
+
+					pci->devices[cur_dev].busdevfn = (bus<<20)|(dev<<15)|(fn<<12);
+					pci->devices[cur_dev].vendor_id = id&0xffff;
+					pci->devices[cur_dev].device_id = id>>16U;
+					pci->devices[cur_dev].bcc = bcc;
+					pci->devices[cur_dev].scc = scc;
+					pci->devices[cur_dev].pi = pi;
+
+					cur_dev++;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
+const struct pci_irq_table *
+find_pci_irq_table(struct pci_root *root,
+		   struct pci_device *dev)
+{
+	int bus = BDF_BUS(dev->busdevfn);
+	int i, j, n, m;
+	int d, f;
+
+	d = BDF_DEV(dev->busdevfn);
+	f = BDF_FN(dev->busdevfn);
+
+	n = root->num_bridge;
+	for (i=0; i<n; i++) {
+		struct pci_bridge *b = &root->bridges[i];
+		if (b->busno == bus) {
+			m = b->num_irq_table;
+			for (j=0; j<m; j++) {
+				int tdev = (b->irq_table[j].addr>>16)&0xffff;
+				int tfn = (b->irq_table[j].addr)&0xffff;
+
+				if ((tdev == d) &&
+				    ((tfn == 0xffff) ||
+				     (tfn == f))) {
+					return &b->irq_table[j];
+				}
+			}
+		}
+	}
+
+	return NULL;
 }
 
 void
@@ -442,7 +615,7 @@ lspci_tree0(struct pci_root *pci,
 	       BDF_BUS(node->busdevfn),
 	       BDF_DEV(node->busdevfn),
 	       BDF_FN(node->busdevfn),
-	       pci->tree[off+PCITREE_OFFSET_BUSNO]);
+	       b->busno);
 
 	for (i=0; i<b->num_irq_table; i++) {
 		printf("  %08x: %d %d %d %d\n",

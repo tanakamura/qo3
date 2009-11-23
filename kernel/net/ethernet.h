@@ -1,0 +1,8 @@
+#ifndef QO3_KERNEL_NET_ETHERNET_H
+#define QO3_KERNEL_NET_ETHERNET_H
+
+#define ETH_HEADER_LEN 14
+#define ETH_PROT_IP4 0x0800
+#define ETH_PROT_IP6 0x86DD
+
+#endif

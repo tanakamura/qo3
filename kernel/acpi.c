@@ -342,19 +342,19 @@ acpi_start(void)
 	//AcpiDbgLevel = ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_VERBOSITY1;
 	r = AcpiInitializeSubsystem();
 	if (ACPI_FAILURE(r)) {
-		puts("initialize subsystem");
+		puts("initialize subsystem\n");
 		fatal();
 	}
 
 	r = AcpiInitializeTables(NULL, 4, 0);
 	if (ACPI_FAILURE(r)) {
-		puts("initialize tables");
+		puts("initialize tables\n");
 		fatal();
 	}
 
 	r = AcpiLoadTables();
 	if (ACPI_FAILURE(r)) {
-		puts("load tables");
+		puts("load tables\n");
 		fatal();
 	}
 
@@ -362,15 +362,15 @@ acpi_start(void)
 	r = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
 
 	if (ACPI_FAILURE(r)) {
-		printf("initialize subsystem: %s", AcpiFormatException(r));
-		bios_system_reset();
+		printf("initialize subsystem: %s\n", AcpiFormatException(r));
+		fatal();
 	}
 
 	r = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
 
 	if (ACPI_FAILURE(r)) {
-		printf("initialize objects: %s", AcpiFormatException(r));
-		bios_system_reset();
+		printf("initialize objects: %s\n", AcpiFormatException(r));
+		fatal();
 	}
 
 	obj.Type = ACPI_TYPE_INTEGER;
@@ -379,7 +379,7 @@ acpi_start(void)
 	r = AcpiEvaluateObject(NULL, "\\_PIC", &pic_args, NULL);
 
 	if (ACPI_FAILURE(r)) {
-		printf("set ioapic: %s", AcpiFormatException(r));
-		bios_system_reset();
+		printf("set ioapic: %s\n", AcpiFormatException(r));
+		//fatal();
 	}
 }

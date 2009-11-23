@@ -38,5 +38,6 @@ void *sbrk_size(uintptr_t inc)
 #define SBRK_T(type) sbrk_size(sizeof(type),sizeof(type))
 
 void brk_init(void);
+void dump_brk(void);
 
 #endif

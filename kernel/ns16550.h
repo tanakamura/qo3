@@ -14,6 +14,6 @@ void ns16550_init_intr(void);
 
 void ns16550_dump_registers(void);
 
-void ns16550_read(char *buffer, int n, event_bits_t *ready_ptr, event_bits_t ready_bits);
+void ns16550_read(void *buffer, int n, event_bits_t *ready_ptr, event_bits_t ready_bits);
 
 #endif

@@ -202,7 +202,7 @@ cns16550_intr(void)
 }
 
 void
-ns16550_read(char *buffer, int n, event_bits_t *ready_ptr, event_bits_t ready_bit)
+ns16550_read(void *buffer, int n, event_bits_t *ready_ptr, event_bits_t ready_bit)
 {
 	int ier = inb(PORT+REG_IER);
 	request_set.ready_ptr = ready_ptr;
