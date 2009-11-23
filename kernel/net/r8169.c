@@ -441,7 +441,7 @@ r8169_dump(struct r8169_dev *dev)
 
 	printf("r8169 irq: %d %d %d %d\n",
 	       dev->irq->irq[0], dev->irq->irq[1], dev->irq->irq[2], dev->irq->irq[3]);
-	printf("mmiobase : %lx\n", dev->mmio_base);
+	printf("mmiobase : %lx\n", (long)dev->mmio_base);
 	printf("MAC : %02x %02x %02x %02x %02x %02x\n",
 	       dev->mac[0], dev->mac[1], dev->mac[2], dev->mac[3], dev->mac[4], dev->mac[5]);
 
