@@ -98,34 +98,34 @@ static inline uint16_t
 movbe_load16(uint16_t *addr)
 {
 	uint16_t r;
-	__asm__ __volatile__ ("movbew %1,%0"
-			      :"=r"(r)
-			      :"m"(addr));
+	__asm__("movbew %1,%0"
+		:"=r"(r)
+		:"m"(*addr));
 	return r;
 }
 static inline uint32_t
 movbe_load32(uint32_t *addr)
 {
 	uint32_t r;
-	__asm__ __volatile__ ("movbel %1,%0"
-			      :"=r"(r)
-			      :"m"(addr));
+	__asm__("movbel %1,%0"
+		:"=r"(r)
+		:"m"(*addr));
 	return r;
 }
 
 static inline void
 movbe_store16(uint16_t *addr, uint16_t v)
 {
-	__asm__ __volatile__ ("movbew %1,%0"
-			      :"=m"(*addr)
-			      :"r"(v));
+	__asm__ __volatile__("movbew %1,%0"
+			     :"=m"(*addr)
+			     :"r"(v));
 }
 static inline void
 movbe_store32(uint32_t *addr, uint32_t v)
 {
-	__asm__ __volatile__ ("movbel %1,%0"
-			      :	"=m"(*addr)
-			      : "r"(v));
+	__asm__ __volatile__("movbel %1,%0"
+			     :	"=m"(*addr)
+			     : "r"(v));
 }
 
 #endif

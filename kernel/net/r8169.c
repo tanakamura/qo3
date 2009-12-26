@@ -11,6 +11,7 @@
 #include "kernel/config.h"
 #include "kernel/atomic.h"
 
+#define MAR0 0x08
 #define Command 0x37
 #define InterruptMask 0x3c
 #define InterruptStatus 0x3e
@@ -109,8 +110,8 @@ reset_state(struct r8169_dev *dev)
 {
 	int i;
 
-	w16(dev, InterruptStatus, ~0); /* clear all interrupt */
 	w16(dev, InterruptMask, 0x0); /* disable all interrupt */
+	w16(dev, InterruptStatus, ~0); /* clear all interrupt */
 
 	w8(dev, Command, 0); /* stop Tx&Rx */
 
@@ -147,14 +148,19 @@ reset_state(struct r8169_dev *dev)
 
 	w32(dev, TxConfig,
 	    (r32(dev,TxConfig)&~(0x7<<8)) | /* ~0x7<<8 : clear DMA */
-	    (0x6 << 8));	/* 1024 DMA */
+	    (0x7 << 8));	/* unlimited DMA */
 
 	w32(dev, RxConfig,
+	    /* fixme all */
 	    0xe |		/* broadcast(8), multicast(4), physical match(2) */
-	    (0x6 << 8) |	/* 1024 dma */
-	    (0x6 << 13));	/* 1024 threashold */
+	    (0x7 << 8) |	/* unlimited dma */
+	    (0x7 << 13));	/* no threashold */
 
-	w16(dev, RMS, 1514);
+	/* fixme crc */
+	w32(dev, MAR0, 0xffffffff);
+	w32(dev, MAR0+4, 0xffffffff);
+
+	w16(dev, RMS, (1<<14)-1);
 
 	wAddr(dev, RDSAR, (uintptr_t)dev->rx_desc);
 	wAddr(dev, TNPDS, (uintptr_t)dev->tx_desc);
@@ -172,11 +178,13 @@ r8169_irq(int irq, void *data)
 
 	if (bits) {
 		dev->intr++;
-		if (bits & 0x804a) { /* 1000 0000 1100 1010 */
+		if (bits & 0x804a) { /* 1000 0000 0100 1010 */
+			w16(dev, InterruptStatus, 0x804a); /* accept error */
 			printf("r8169 error: %x\n", bits & 0x804a);
 		}
 
 		if (bits & (1<<5)) { /* link change */
+			w16(dev, InterruptStatus, (1<<5)); /* accept link change */
 			print_link(dev);
 		}
 
@@ -186,6 +194,8 @@ r8169_irq(int irq, void *data)
 			uint32_t *desc = dev->tx_desc;
 			event_bits_t **ep = dev->tx_event_pointers;
 			event_bits_t *eb = dev->tx_event_bits;
+
+			w16(dev, InterruptStatus, (1<<2)); /* accept rx ok */
 
 			spinlock(dev->tx_lock); /* read tx_pos & OWN should be atomic */
 			lfence();
@@ -210,6 +220,8 @@ r8169_irq(int irq, void *data)
 			event_bits_t *eb = dev->rx_event_bits;
 			uint32_t **flag_ret = dev->rx_flags_ret_ptr;
 
+			w16(dev, InterruptStatus, 1); /* accept rx ok */
+
 			spinlock(dev->rx_lock);
 			lfence();
 			pos = dev->rx_pos;
@@ -228,8 +240,6 @@ r8169_irq(int irq, void *data)
 
 			dev->rx_own_pos = own;
 		}
-
-		w16(dev, InterruptStatus, bits);
 
 		return IRQ_HANDLED;
 	}
@@ -382,7 +392,7 @@ r8169_rx_packet(struct r8169_dev *dev,
 	 *   ^
 	 *   rx_pos
 	 *
-	 * (2 is empty, but to keep simple, don't use 2)
+	 * (2 is empty, but to keep simple driver, don't use 2)
 	 *
 	 * rx_own_pos
 	 * v
@@ -390,7 +400,7 @@ r8169_rx_packet(struct r8169_dev *dev,
 	 *        ^
 	 *        rx_pos
 	 *
-	 * (7 is empty, but to keep simple, don't use 7)
+	 * (7 is empty, but to keep simple driver, don't use 7)
 	 *
 	 * ((rx_pos+1)&7) = 0
 	 *

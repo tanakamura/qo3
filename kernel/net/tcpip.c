@@ -13,7 +13,7 @@ tcpip_parse_packet(struct tcpip_link_state *st,
 		   struct tcpip_parse_result *result)
 {
 	const unsigned char *p = (unsigned char*)packet_v;
-	uint16_t pay_len = movbe_load16((uint16_t*)(p + 4));
+	uint16_t pay_len = movbe_load16((uint16_t*)(p+4));
 	__m128i from, to;
 	int for_me, i, n;
 
@@ -22,12 +22,14 @@ tcpip_parse_packet(struct tcpip_link_state *st,
 		return ;
 	}
 
-	if (pay_len > (frame_len - 40)) {
+	if (pay_len > (frame_len - 40)) { /* 40 = length of basic header */
 		result->code = TCPIP_INVALID_PAYLOAD_LENGTH;
 		return ;
 	}
 
-	if (*p == 0xff)		/* multicast */
+	printf("%x %x %x\n", p[15], p[16], p[17]);
+
+	if (p[8+16] == 0xff)		/* multicast */
 		goto mine;
 
 	from = _mm_loadu_si128((__m128i*)(p+8));

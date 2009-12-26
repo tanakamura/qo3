@@ -65,3 +65,13 @@ puts(const char *str)
 
 	return len+2;
 }
+
+int
+putchar(int c)
+{
+	char buf[1];
+	buf[0] = c;
+	ns16550_write_poll(buf, 1);
+
+	return c;
+}

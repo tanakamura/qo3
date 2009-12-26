@@ -467,6 +467,7 @@ do_r8169_rx(void)
 		for (j=0; j<16; j++) {
 			printf("%02x ", buffer[i*16+j]);
 		}
+		puts("");
 	}
 }
 
@@ -479,7 +480,7 @@ do_tcpip_dump(void)
 static void
 do_tcpip_rs(void)
 {
-	int len = tcpip_build_rs(buffer, &tcpip_link);
+	int len = tcpip_build_rs(buffer, &tcpip_link), i, j;
 	uint32_t flags;
 	event_bits_t done = 0;
 	struct tcpip_parse_result parse;
@@ -509,10 +510,19 @@ do_tcpip_rs(void)
 	}
 
 	len = flags & ((1<<14)-1);
-	printf("%x %x\n", flags, done);
-	tcpip_parse_packet(&tcpip_link, buffer_many[0], len, &parse);
 
-	printf("%d\n", (int)parse.code);
+	for (i=0; i<(len+15)/16; i++) {
+		printf("%04x: ", i*16);
+		for (j=0; j<16; j++) {
+			printf("%02x ", buffer_many[0][i*16+j]);
+		}
+		puts("");
+	}
+
+	if (len > 14) {
+		tcpip_parse_packet(&tcpip_link, buffer_many[0]+14, len-14, &parse);
+		printf("%d\n", (int)parse.code);
+	}
 
 	wait_event_all(&done, 1);
 }
