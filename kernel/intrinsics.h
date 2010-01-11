@@ -24,7 +24,6 @@
 			      :					 \
 			      :"A"(ll),"c"(c))
 
-
 #define cpuid(a,ao,b,c,d) \
 	__asm__ __volatile__ ("cpuid"				\
 			      :"=a"(ao),"=b"(b),"=c"(c),"=d"(d) \
@@ -34,6 +33,8 @@
 	__asm__ __volatile__ ("mwait"		\
 			      :			\
 			      :"a"(a), "c"(c))
+
+#define C_STATE(state,sub) ((state)<<4|(sub))
 
 #define monitor(a,c,d)					\
 	__asm__ __volatile__ ("monitor"			\
@@ -126,6 +127,32 @@ movbe_store32(uint32_t *addr, uint32_t v)
 	__asm__ __volatile__("movbel %1,%0"
 			     :	"=m"(*addr)
 			     : "r"(v));
+}
+static inline unsigned int
+rdtsc_lo(void)
+{
+	unsigned int lo,hi;
+	__asm__ __volatile__("rdtsc"
+			     :"=a"(lo), "=d"(hi));
+	return lo;
+}
+
+static inline unsigned int
+get_cr0(void)
+{
+	unsigned int reg;
+	__asm__ __volatile__("mov %%cr0, %0\n\t"
+			     :"=r"(reg));
+	return reg;
+}
+
+static inline unsigned int
+get_cr4(void)
+{
+	unsigned int reg;
+	__asm__ __volatile__("mov %%cr4, %0\n\t"
+			     :"=r"(reg));
+	return reg;
 }
 
 #endif

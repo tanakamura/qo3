@@ -19,13 +19,16 @@ struct pci_root;
 int pci_init(struct pci_root *pci,
 	     struct pci_init_error *error);
 
+void pci_print_init_error(struct pci_init_error *error);
+
 typedef uintptr_t busdevfn_t;
-#define BDF_BUS(x) (((x)>>20)&0xff)
+#define BDF_BUS(x) (((x)>>20)&0x7f)
 #define BDF_DEV(x) (((x)>>15)&0x1f)
 #define BDF_FN(x) (((x)>>12)&0x07)
 #define BDF_DEVFN(x) (((x)>>12)&0xff)
 
 struct pci_device {
+	uintptr_t conf_addr;
 	busdevfn_t busdevfn;
 	uint16_t vendor_id;
 	uint16_t device_id;
@@ -52,6 +55,7 @@ struct pci_root {
 	struct pci_device *devices;
 	int num_bridge;
 	struct pci_bridge *bridges;
+	int nr_bus;
 
         /* brdid is offset of bridges
          *
@@ -72,19 +76,19 @@ extern struct pci_root pci_root0;
 static inline uint32_t
 pci_conf_read32(struct pci_device *d, int reg)
 {
-	uintptr_t a = d->busdevfn + reg;
+	uintptr_t a = d->conf_addr + reg;
 	return mmio_read32(a);
 }
 static inline uint16_t
 pci_conf_read16(struct pci_device *d, int reg)
 {
-	uintptr_t a = d->busdevfn + reg;
+	uintptr_t a = d->conf_addr + reg;
 	return mmio_read16(a);
 }
 static inline uint8_t
 pci_conf_read8(struct pci_device *d, int reg)
 {
-	uintptr_t a = d->busdevfn + reg;
+	uintptr_t a = d->conf_addr + reg;
 	return mmio_read8(a);
 }
 #else

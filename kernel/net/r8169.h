@@ -9,9 +9,12 @@ enum r8169_init_error_code {
 	R8169_INIT_NOT_FOUND,
 	R8169_INIT_IRQ_NOT_FOUND
 };
+
 struct r8169_init_error {
 	enum r8169_init_error_code code;
 };
+
+void r8169_print_init_error(struct r8169_init_error *e);
 
 #define R8169_NUM_BUFFER 16
 #define R8169_DESC_POS_MASK 0xf

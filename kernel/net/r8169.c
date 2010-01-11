@@ -266,9 +266,10 @@ r8169_init(struct pci_root *pci,
 				/* fixme 64 */
 				uint32_t memar = pci_conf_read32(p+i, 0x18);
 
+				printf("%x\n", (int)memar);
 				if (memar) {
 					base = memar & 0xffffff00;
-					if ((memar & 0xfb) == 0) {
+					if ((memar & 0xf3) == 0) {
 						break;
 					}
 				}
@@ -476,3 +477,16 @@ r8169_dump(struct r8169_dev *dev)
 
 }
 
+void
+r8169_print_init_error(struct r8169_init_error *e)
+{
+	switch (e->code) {
+	case R8169_INIT_NOT_FOUND:
+		puts("device not found");
+		break;
+
+	case R8169_INIT_IRQ_NOT_FOUND:
+		puts("irq not found");
+		break;
+	}
+}

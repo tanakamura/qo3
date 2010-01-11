@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include "kernel/brk.h"
 #include "kernel/intrinsics.h"
+#include "kernel/bios.h"
 
 void
 fatal(void)
 {
 	int c;
 	puts("fatal!");
+	bios_system_reset();
 	dump_brk();
 	while (1) {
 		monitor(&c, 0, 0);
@@ -39,6 +41,7 @@ cinvalid_opcode(int edi, int esi, int ebp, int esp,
 {
 	dump_inst(eip, cs);
 	printf("invalid opcode: %x, %x\n", eip, cs);
+	printf("cr0 = %08x\n", get_cr0());
 	fatal();
 }
 

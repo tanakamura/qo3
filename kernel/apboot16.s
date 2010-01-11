@@ -12,7 +12,12 @@ apboot_main16:
 
 	mov	eax, cr0
 	or	eax, 1 ; PE
+	and	eax, ~4 ; clear EM
 	mov	cr0, eax
+
+	mov	eax, cr4
+	or	eax, (1<<9) ; enable SSE
+	mov	cr4, eax
 
 	; maybe.. not required.. this program can't run on 486
 	jmp	flush

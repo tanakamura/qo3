@@ -6,6 +6,7 @@
 #include "kernel/bios.h"
 
 #define DEBUG_PUTS(a) (void)(0)
+//#define DEBUG_PUTS(a) puts(a)
 
 static void
 sigstr(char *p, uint32_t sig)
@@ -159,6 +160,7 @@ read_rsdt(struct build_acpi_table_error *err, uintptr_t rsdt)
 }
 
 
+#if 0
 static int
 read_dsdt(struct build_acpi_table_error *err, uintptr_t dsdt)
 {
@@ -188,7 +190,7 @@ read_dsdt(struct build_acpi_table_error *err, uintptr_t dsdt)
 			break;
 		case 3:
 			aml_len = ((lead_byte & 0xf)<<24) + (R8(dsdt,off+1)<<16)
-				+ (R8(dsdt,off+2)<<8) + + (R8(dsdt,off+3));
+				+ (R8(dsdt,off+2)<<8) + (R8(dsdt,off+3));
 			break;
 		}
 
@@ -200,6 +202,7 @@ read_dsdt(struct build_acpi_table_error *err, uintptr_t dsdt)
 	(void)err;
 	return 0;
 }
+#endif
 
 
 static int
@@ -218,11 +221,12 @@ read_facp(struct build_acpi_table_error *err, uintptr_t facp)
 	}
 
 	acpi_table.dsdt = dsdt;
-
+/*
 	r = read_dsdt(err, dsdt);
 	if (r < 0) {
 		return -1;
 	}
+*/
 
 	return 0;
 }

@@ -27,6 +27,7 @@
 #include "kernel/net/r8169.h"
 #include "kernel/uhci.h"
 #include "kernel/net/tcpip.h"
+#include "kernel/bench.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
@@ -527,15 +528,35 @@ do_tcpip_rs(void)
 	wait_event_all(&done, 1);
 }
 
+
+static void
+do_bench(void)
+{
+	run_bench(&r8169_dev);
+}
+
+static void
+do_hello_ap(void)
+{
+	int a;
+
+	printf("apic id?> ");
+	a = read_int();
+	post_command_to_ap(a, AP_COMMAND_HELLO);
+}
+
+
 #define NAME_LEN(name) name, sizeof(name)-1
 static void do_help(void);
 
 static struct command commands[] = {
+	{NAME_LEN("bench"), do_bench},
 	{NAME_LEN("reset"), do_reset},
 	{NAME_LEN("rdmsr"), show_msr},
 	{NAME_LEN("cpuid"), show_cpuid},
 	{NAME_LEN("show_mtrr"), show_mtrr},
 	{NAME_LEN("boot_ap"), boot_ap},
+	{NAME_LEN("hello_ap"), do_hello_ap},
 	{NAME_LEN("div0"), div0},
 	{NAME_LEN("int3"), int3},
 	{NAME_LEN("hlt"), do_hlt},
@@ -702,6 +723,7 @@ cmain()
 	r = pci_init(&pci_root0, &pci_error);
 	if (r < 0) {
 		puts("pci init error");
+		pci_print_init_error(&pci_error);
 	}
 
 	r = hda_init(&pci_root0, &hda_err);
@@ -712,6 +734,7 @@ cmain()
 	r = r8169_init(&pci_root0, &r8169_dev, &r8169_err, 0);
 	if (r < 0) {
 		puts("r8169 init error");
+		r8169_print_init_error(&r8169_err);
 	}
 
 	/*
@@ -755,17 +778,6 @@ cmain()
 	while (1);
 }
 
-static void
-end_ap(void)
-{
-	int c = 0;
-	while (1) {
-		monitor(&c, 0, 0);
-		mwait(3<<4|2, 0);
-	}
-}
-
-
 void
 cAP_main(void)
 {
@@ -777,11 +789,12 @@ cAP_main(void)
 	apic_id = read_local_apic(LAPIC_ID);
 	apic_id >>= 24U;
 
+	((ap_command_t*)ap_command_mwait_line[apic_id])[0] = 0;
 	smp_table[apic_id].flags |= PROCESSOR_ENABLED;
 	sfence();
 
 	while (1) {
-		end_ap();
+		ap_thread(apic_id);
 	}
 }
 

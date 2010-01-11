@@ -2,8 +2,6 @@
 #include "intrinsics.h"
 #include <stdio.h>
 
-#define C_STATE(state,sub) ((state)<<4|(sub))
-
 static inline event_bits_t
 wait_event(event_bits_t *ready_ptr, event_bits_t mask, int is_any)
 {
