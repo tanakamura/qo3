@@ -28,6 +28,7 @@
 #include "kernel/uhci.h"
 #include "kernel/net/tcpip.h"
 #include "kernel/bench.h"
+#include "kernel/firstsegment.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
@@ -128,6 +129,7 @@ show_mtrr(void)
 }
 
 extern unsigned char apboot_main16[];
+extern unsigned char apboot_main16_end[];
 
 static void
 boot_ap(void)
@@ -135,7 +137,7 @@ boot_ap(void)
 	unsigned int addr = APBOOT_ADDR_4K;
 	unsigned char *apboot_addr = (unsigned char*)APBOOT_ADDR;
 
-	memcpy(apboot_addr, apboot_main16, 512);
+	memcpy(apboot_addr, apboot_main16, apboot_main16_end-apboot_main16);
 	sfence();
 
 	/* send INIT 
@@ -602,6 +604,7 @@ dump_info(void)
 	unsigned int ioapic_ver, bsp_apic_id, ebda_addr, lvt;
 	unsigned long long msr_base;
 	unsigned int hpet_period;
+	short *e820_table_info;
 
 	/* find apic ver */
 	ich7_write(IOAPIC_INDEX,IOAPIC_VER);
@@ -637,6 +640,30 @@ dump_info(void)
 	hpet_period = ICH7_HPET_READ(HPET_GCAP_HI);
 	printf("hpet period = %d\n", hpet_period);
 	printf("hpet freq .=. %d[kHz]\n", 1000000000/(hpet_period/1000));
+
+	e820_table_info = (short*)E820_TABLE_INFO_OFFSET_ADDR32;
+	if (e820_table_info[0]) {
+		int n = e820_table_info[1], i;
+		uint32_t *e820_table = (uint32_t*)E820_TABLE_ADDR32;
+
+		printf("size of e820 table: %d\n", n);
+
+		for (i=0; i<n; i++) {
+			/*  0: base addr low
+			 *  4: base addr high
+			 *  8: length low
+			 * 12: length high
+			 * 16: type
+			 */
+			printf("%04d: addr: %08x%08x, length:%08x%08x, type=%x\n",
+			       i,
+			       e820_table[5*i+1], e820_table[5*i+0],
+			       e820_table[5*i+3], e820_table[5*i+2],
+			       e820_table[5*i+4]);
+		}
+	} else {
+		puts("no smap");
+	}
 }
 
 

@@ -79,7 +79,7 @@ load(void *p, int sz)
 	}
 }
 
-#define SIZE (16*1024*1024)
+#define SIZE (1024)
 
 static char mem0_buffer[SIZE]__attribute__((aligned(16)));
 static char mem1_buffer[SIZE]__attribute__((aligned(16)));

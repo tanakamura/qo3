@@ -1,17 +1,19 @@
+#CC=/tools/bin/x86_64-linux-gnu-gcc
 CC=gcc
+AR=/tools/bin/x86_64-linux-gnu-ar
 all: do-it-all
 
 AS=nasm
-ASFLAGS=-felf32 
+ASFLAGS=-felf32
 CPPFLAGS=-D__QO3__=1
-COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m32 -Wno-unused-parameter -mssse3
+COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m32 -Wno-unused-parameter -mssse3 -Os
 INCLUDES=-I./
 CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES) -Os -fno-strict-aliasing
 CXXFLAGS=$(COMMON_CFLAGS)
 LDFLAGS=-nostdlib -m32 -Wl,-Ttext,100000 -lgcc -Wl,-Map,QO3.map -s
 
 export LANG=C
-DEPEND_INC=-I$(shell gcc --print-search-dirs | awk '/: \// {print $$2}' )include $(INCLUDES)
+DEPEND_INC=-I$(shell $(CC) --print-search-dirs | awk '/: \// {print $$2}' )include $(INCLUDES)
 
 ifeq ($(wildcard .submake.mk),.submake.mk)
 include .submake.mk

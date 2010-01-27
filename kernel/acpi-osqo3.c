@@ -152,7 +152,7 @@ AcpiOsRemoveInterruptHandler(
 
 void *
 AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS paddr,
-		ACPI_STATUS l)
+		ACPI_SIZE l)
 {
 	return (void*)paddr;
 }

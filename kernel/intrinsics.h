@@ -140,7 +140,7 @@ rdtsc_lo(void)
 static inline unsigned int
 get_cr0(void)
 {
-	unsigned int reg;
+	unsigned long reg;
 	__asm__ __volatile__("mov %%cr0, %0\n\t"
 			     :"=r"(reg));
 	return reg;
@@ -149,7 +149,7 @@ get_cr0(void)
 static inline unsigned int
 get_cr4(void)
 {
-	unsigned int reg;
+	unsigned long reg;
 	__asm__ __volatile__("mov %%cr4, %0\n\t"
 			     :"=r"(reg));
 	return reg;
