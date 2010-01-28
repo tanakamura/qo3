@@ -10,9 +10,6 @@
 
 %include "kernel/firstsegment.inc"
 
-	%define	gdt0	GDT_ADDR32
-	%define	gdtdesc0	GDTDESC_OFFSET_ADDR32
-
 	cpu	P4
 	bits	32
 
@@ -36,19 +33,20 @@ start2:
 	push	dword 0
 	popf
 
-	; copy gdt to 0
-	mov	esi, gdt
-	mov	edi, gdt0
-	mov	ecx, 8*(NUM_GDT_ENTRY)
+setup_segment16:
+	; copy program to SETUP_START
+	mov	ecx, e820_setup_end
+	sub	ecx, e820_setup ; size of program
+	mov	esi, e820_setup
+	mov	edi, FIRSTSEGMENT_ADDR32
 
+	; esi:src = e820_setup (code16.s)
+	; edi:dst = FIRSTSEGMENT
+	; ecx:size = (e820_setup_end - e820_setup)
 	call	memcpy4
 
-	mov	ax, (8*(NUM_GDT_ENTRY)-1)
-	mov	word [gdtdesc0], ax
-	mov	eax, gdt0
-	mov	dword [gdtdesc0+2], eax
-
-	lgdt	[gdtdesc0]
+	movzx	eax, word [FIRSTSEGMENT_ADDR32 + GDTDESC*2]
+	lgdt	[eax + FIRSTSEGMENT_ADDR32]
 
 	mov	eax, 8
 
@@ -60,6 +58,7 @@ start2:
 
 	jmp	16:start3
 start3:
+
 	call	run_setup_e820
 	xor	eax, eax
 
@@ -85,8 +84,24 @@ start3:
 	out	0x21, al
 	out	0xa1, al
 
-	lidt	[idtdesc]
+	; esi:src = idt
+	; edi:dst = FIRSTSEGMENT:idt
+	; ecx:size = sizeof idt
+	mov	ecx, idt_end-idt
+	mov	esi, idt
+	movzx	edi, word [FIRSTSEGMENT_ADDR32 + IDT*2]
+	add	edi, FIRSTSEGMENT_ADDR32
+	mov	ebx, edi
+
+	call	memcpy4
+
+	movzx	eax, word [FIRSTSEGMENT_ADDR32 + IDTDESC*2]
+	add	eax, FIRSTSEGMENT_ADDR32
+	mov	word [eax], 8*256-1
+	mov	dword [eax+2], ebx
+	lidt	[eax]
 	sti
+
 	jmp	cmain
 
 	; AP routine
@@ -104,7 +119,8 @@ ap_start32:
 	add	eax, ap_stack
 	mov	esp, eax
 
-	lgdt	[gdtdesc0]
+	movzx	eax, word [FIRSTSEGMENT_ADDR32 + GDTDESC*2]
+	lgdt	[eax + FIRSTSEGMENT_ADDR32]
 	mov	eax, 8
 
 	mov	ds, eax
@@ -115,29 +131,17 @@ ap_start32:
 
 	jmp	16:ap_start2
 ap_start2:
-	lidt	[idtdesc]
+	movzx	eax, word [FIRSTSEGMENT_ADDR32 + IDTDESC*2]
+	add	eax, FIRSTSEGMENT_ADDR32
+	lidt	[eax]
 	sti
-
 	call	cAP_main
 
 
 run_setup_e820:
-	; copy program to SETUP_START
-	mov	ecx, e820_setup_end
-	sub	ecx, e820_setup + E820_SETUP_START ; size of program
-	mov	edi, E820_SETUP_START_ADDR32
-	mov	esi, e820_setup + E820_SETUP_START
-
-	call	memcpy4
-
-	mov	eax, 24
-	mov	ds, eax
-	mov	es, eax
-	mov	fs, eax
-	mov	gs, eax
-	mov	ss, eax
-
-	jmp	32: E820_SETUP_START
+	movzx	ecx, word [FIRSTSEGMENT_ADDR32 + E820_SETUP]
+	add	ecx, FIRSTSEGMENT_ADDR32
+	jmp	ecx
 
 memcpy4:
 	; clobbered eax, edx
@@ -272,6 +276,10 @@ idt:
 %assign vec vec+1
 %endrep
 
+	align	16
+idt_end:
+	
+
 
 
 general_protection:
@@ -284,25 +292,8 @@ general_protection:
 	add	esp, 4 ; errcode
 	iretd
 
-	SECTION .bss
-
-	align	16
-xsave_buffer:
-	resb	512
-
-stack:
-	resb	STACK_SIZE
-
-int_stack:
-	resb	STACK_SIZE
 
 
-	global	have_too_many_cpus
-have_too_many_cpus:
-	resb	4
-
-	SECTION	.rodata
-	align	16
 gdt:
 	; limit 16
 	; base 16
@@ -345,11 +336,32 @@ gdt:
 %define	BASE_32_64(a) (((a)>>32)&0xffffffff)
 
 	; 40,48 : tss64
-	
+	times 8	db 0
 
-idtdesc:
-	dw	8*256-1
-	dd	idt
+gdtdesc:
+	dw	(8*(NUM_GDT_ENTRY)-1)
+	dd	gdt
+
+
+	SECTION .bss
+
+	align	16
+xsave_buffer:
+	resb	512
+
+stack:
+	resb	STACK_SIZE
+
+int_stack:
+	resb	STACK_SIZE
+
+
+	global	have_too_many_cpus
+have_too_many_cpus:
+	resb	4
+
+	SECTION	.rodata
+	align	16
 
 
 	align	8

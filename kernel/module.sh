@@ -17,6 +17,6 @@ kernel/apboot16.o: kernel/apboot16.s
 kernel/e820-setup.o: kernel/e820-setup.s kernel/firstsegment.inc
 	nasm -f bin -o $@ $<
 
-kernel/firstsegment.h: kernel/firstsegment.inc
+kernel/firstsegment-const.h: kernel/firstsegment.inc
 	sed s/%/#/g < $< > $@
 '

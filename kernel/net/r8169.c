@@ -308,6 +308,9 @@ r8169_init(struct pci_root *pci,
 	spinlock_init(&dev->rx_lock);
 
 	pci_irq_add(irq->irq[0], r8169_irq, dev);
+	pci_irq_add(irq->irq[1], r8169_irq, dev);
+	pci_irq_add(irq->irq[2], r8169_irq, dev);
+	pci_irq_add(irq->irq[3], r8169_irq, dev);
 
 	reset_state(dev);
 

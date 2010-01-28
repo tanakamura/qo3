@@ -28,7 +28,7 @@
 #include "kernel/uhci.h"
 #include "kernel/net/tcpip.h"
 #include "kernel/bench.h"
-#include "kernel/firstsegment.h"
+#include "kernel/segment16.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
@@ -547,6 +547,16 @@ do_hello_ap(void)
 	post_command_to_ap(a, AP_COMMAND_HELLO);
 }
 
+void
+do_list_ap(void)
+{
+	int i;
+	for (i=0; i<NUM_MAX_CPU; i++) {
+		if (smp_table[i].flags & PROCESSOR_ENABLED) {
+			printf("hello %d!\n", i);
+		}
+	}
+}
 
 #define NAME_LEN(name) name, sizeof(name)-1
 static void do_help(void);
@@ -559,6 +569,7 @@ static struct command commands[] = {
 	{NAME_LEN("show_mtrr"), show_mtrr},
 	{NAME_LEN("boot_ap"), boot_ap},
 	{NAME_LEN("hello_ap"), do_hello_ap},
+	{NAME_LEN("list_ap"), do_list_ap},
 	{NAME_LEN("div0"), div0},
 	{NAME_LEN("int3"), int3},
 	{NAME_LEN("hlt"), do_hlt},
@@ -641,10 +652,10 @@ dump_info(void)
 	printf("hpet period = %d\n", hpet_period);
 	printf("hpet freq .=. %d[kHz]\n", 1000000000/(hpet_period/1000));
 
-	e820_table_info = (short*)E820_TABLE_INFO_OFFSET_ADDR32;
+	e820_table_info = (short*)get_segment16_addr(E820_TABLE_INFO);
 	if (e820_table_info[0]) {
 		int n = e820_table_info[1], i;
-		uint32_t *e820_table = (uint32_t*)E820_TABLE_ADDR32;
+		uint32_t *e820_table = (uint32_t*)get_segment16_addr(E820_TABLE);
 
 		printf("size of e820 table: %d\n", n);
 
