@@ -15,6 +15,12 @@
 
 %include	"kernel/gdt.inc"
 
+%macro	firstsegment_addr 2
+	movzx	%1, word [FIRSTSEGMENT_ADDR32 + %2*2]
+	add	%1, FIRSTSEGMENT_ADDR32
+%endmacro
+
+
 _start:
 addr100000:
 	jmp	start2
@@ -84,13 +90,14 @@ start3:
 	out	0x21, al
 	out	0xa1, al
 
-	; esi:src = idt
-	; edi:dst = FIRSTSEGMENT:idt
-	; ecx:size = sizeof idt
+	mov	ecx, tss64_end-tss64
+	mov	esi, tss64
+	firstsegment_addr edi, TSS64
+	call	memcpy4
+
 	mov	ecx, idt_end-idt
 	mov	esi, idt
-	movzx	edi, word [FIRSTSEGMENT_ADDR32 + IDT*2]
-	add	edi, FIRSTSEGMENT_ADDR32
+	firstsegment_addr edi, IDT
 	mov	ebx, edi
 
 	call	memcpy4
@@ -100,9 +107,26 @@ start3:
 	mov	word [eax], 8*256-1
 	mov	dword [eax+2], ebx
 	lidt	[eax]
+
+	call	init_ns16550
+	mov	esi, hello32
+	call	puts
+
+;%include	"kernel/enable64.inc"
+
 	sti
 
 	jmp	cmain
+
+clear_table:
+	xor	ecx, ecx
+.loop:
+	mov	dword [8*ecx + esi], 0;
+	add	ecx, 1
+	cmp	ecx, 512
+	jne	.loop
+
+	ret
 
 	; AP routine
 	align	0x100
@@ -165,6 +189,8 @@ too_many_cpu:
 too_many_cpu_hlt:
 	hlt
 	jmp	too_many_cpu_hlt
+
+%include	"kernel/serial32.inc"
 
 %define	lo(x) (((x)-addr100000))
 %define	hi(x) (0x10)
@@ -293,87 +319,53 @@ general_protection:
 	iretd
 
 
+	SECTION	.data
 
-gdt:
-	; limit 16
-	; base 16
-	;
-	; base 8(0-7)
-	; type 4(8-11)
-	; 1    1(12)
-	; dpl  2(13-14)
-	; p    1(15)
-	;
-	; limit 4(16-19)
-	; avl   1(20)
-	; l     1(21)
-	; d     1(22)
-	; g     1(23)
-	; base  8(24-31)
-
-	dw	0, 0
-	dd	0
-
-	; read write (8)
-	dw	0xffff, 0
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_RW32) | (0<<SEGDESC_DPL_SHIFT)
-
-	; exec read (16)
-	dw	0xffff, 0
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC) | (0<<SEGDESC_DPL_SHIFT)
-
-	; 24 : real data
-	dw	0xffff, FIRSTSEGMENT_ADDR32
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_RW16) | (0<<SEGDESC_DPL_SHIFT)
-
-	; 32 : real code
-	dw	0xffff, FIRSTSEGMENT_ADDR32
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC16) | (0<<SEGDESC_DPL_SHIFT)
-
-%define	BASE_0_16(a) ((a)&0xffff)
-%define	BASE_16_23(a) (((a)>>23)&0xff)
-%define	BASE_24_31(a) (((a)>>24)&0xff)
-%define	BASE_32_64(a) (((a)>>32)&0xffffffff)
-
-	; 40,48 : tss64
-	times 8	db 0
-
-gdtdesc:
-	dw	(8*(NUM_GDT_ENTRY)-1)
-	dd	gdt
-
+hello32:
+	db	`hello 32bit.\r\n`
 
 	SECTION .bss
 
 	align	16
 xsave_buffer:
 	resb	512
-
 stack:
 	resb	STACK_SIZE
-
 int_stack:
 	resb	STACK_SIZE
-
 
 	global	have_too_many_cpus
 have_too_many_cpus:
 	resb	4
 
+
+	alignb	4096
+pml4:	resb	4096
+	alignb	4096
+pdp:	resb	4096
+	alignb	4096
+pdir:	resb	4096
+	alignb	4096
+pte:	resb	4096
+
+%define lo32(a) a
+%define hi32(a) 0
+
 	SECTION	.rodata
+
 	align	16
-
-
-	align	8
-%if 0
 tss64:
 	dd	0		; reserved
-	dq	int_stack	; rsp0 (4)
-	dq	int_stack	; rsp1 (c)
-	dq	int_stack	; rsp2 (14)
+	dd	lo32(int_stack)	; rsp0 (4)
+	dd	hi32(int_stack)	; rsp0 (8)
+	dd	lo32(int_stack)	; rsp1 (c)
+	dd	hi32(int_stack)	; rsp1 (10)
+	dd	lo32(int_stack)	; rsp2 (14)
+	dd	hi32(int_stack)	; rsp2 (18)
 	dd	0		; reserved (1c)
 	dd	0		; reserved (20)
-	dq	int_stack	; ist1(24)
+	dd	lo32(int_stack)	; ist1(24)
+	dd	hi32(int_stack)	; ist1(28)
 	dq	0		; ist2(2c)
 	dq	0		; ist3(34)
 	dq	0		; ist4(3c)
@@ -383,4 +375,6 @@ tss64:
 	dd	0		; reserved(5c)
 	dd	0		; reserved(60)
 	dd	0		; reserved+iomap base(64)
-%endif
+
+	align	4
+tss64_end:

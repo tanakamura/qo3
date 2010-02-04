@@ -10,6 +10,7 @@ GENERATED="apboot16.o"
 
 POST_APPEND='
 kernel/code16.o: kernel/apboot16.o kernel/e820-setup.o
+kernel/boot.o: kernel/serial32.inc kernel/enable64.inc
 
 kernel/apboot16.o: kernel/apboot16.s
 	nasm -f bin -o $@ $<
