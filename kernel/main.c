@@ -434,7 +434,7 @@ do_r8169_dump(void)
 }
 
 static unsigned char buffer[4096] __attribute__((aligned(4096)));
-static unsigned char buffer_many[16][4096] __attribute__((aligned(4096)));
+static unsigned char buffer_many[2][4096] __attribute__((aligned(4096)));
 
 static void
 do_r8169_tx(void)
@@ -740,7 +740,7 @@ cmain()
 		while (1) hlt();
 	}
 
-	acpi_start();
+	//acpi_start();
 
 	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
 	printf("num processor = %d\n", (int)apic_info.num_processor);

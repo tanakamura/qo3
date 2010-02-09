@@ -45,7 +45,6 @@ cinvalid_opcode(int edi, int esi, int ebp, int esp,
 	fatal();
 }
 
-
 void
 cunknown_exception(int vec)
 {
@@ -78,7 +77,6 @@ GEN_UNHANDLED(coverflow);
 GEN_UNHANDLED(cbound);
 GEN_UNHANDLED(cbreakpoint);
 GEN_UNHANDLED(csegment_not_present);
-GEN_UNHANDLED(cstack_segment_fault);
 GEN_UNHANDLED(cpage_fault);
 GEN_UNHANDLED(cfp_error);
 GEN_UNHANDLED(calignment_check);
@@ -86,20 +84,18 @@ GEN_UNHANDLED(cmachine_check);
 GEN_UNHANDLED(csimd_float);
 
 void
-cgeneral_protection(int edi, int esi, int ebp, int esp,
-		    int ebx, int edx, int ecx, int eax,
-		    int errcode, int eip)
+cstack_segment_fault(uintptr_t rip,
+		     uintptr_t cs)
 {
-	(void)edi;
-	(void)esi;
-	(void)ebp;
-	(void)esp;
-	(void)ebx;
-	(void)edx;
-	(void)ecx;
-	(void)eax;
-	(void)eip;
+	printf("stack sagment fault: rip=%08x cs=%08x\n",
+	       (int)rip, (int)cs);
 
-	printf("general protection %x\n", errcode);
+	fatal();
+}
+
+void
+cgeneral_protection(uintptr_t errcode,uintptr_t rip, uintptr_t cs, uintptr_t *saved_regs)
+{
+	printf("general protection %x @ %x\n", (int)errcode, (int)rip);
 	fatal();
 }

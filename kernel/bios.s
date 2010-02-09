@@ -1,6 +1,6 @@
 	SECTION .text
 	global	bios_system_reset
-	use32
+	bits	32
 
 bios_system_reset:
 	lgdt	[gdtdesc]

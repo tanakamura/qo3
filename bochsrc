@@ -41,8 +41,8 @@ log: bochs.out
 logprefix: %t%e%d
 panic: action=ask
 error: action=report
-info: action=ignore
-debug: action=ignore
+info: action=report
+debug: action=report
 pass: action=fatal
 keyboard_type: mf
 keyboard_serial_delay: 250

@@ -17,7 +17,6 @@ init_pml4:
 	mov	dword [esi], eax
 	mov	dword [esi+4], 0
 
-	
 	; ** pdp **
 	mov	esi, pdp
 	call	clear_table
@@ -28,30 +27,39 @@ init_pml4:
 	; BBBB BBBB BBBB BBBB BBBB xxxr rr00 0111
 	mov	eax, pdir
 	or	eax, 7
-	mov	dword [esi], eax
+
+	mov	dword [esi], eax ; 0-1GB
 	mov	dword [esi+4], 0
+
+	add	eax, 4096
+	mov	dword [esi+8], eax ; 1-2GB
+	mov	dword [esi+12], 0
+	add	eax, 4096
+	mov	dword [esi+16], eax ; 2-3GB
+	mov	dword [esi+20], 0
+	add	eax, 4096
+	mov	dword [esi+24], eax ; 3-4GB
+	mov	dword [esi+28], 0
+
 
 	; ** pdir **
 	mov	esi, pdir
-	call	clear_table
 
-	; setup straight mapping(0x000000-0x3fffff)
-	; use 4MB for kernel text, bss, data(&stack), rodata
+	; setup 2048 page (2048 * 2MB = 4GB)
+	mov	ecx, 2048
+	mov	eax, 0x87
 
-	; first pde (B = 0x000000-0x1fffff)
+	; setup direct mapping(0-4GB)
 	; P, W, U, WT, PS
 	; 0xxx xxxx xxxx 0000 0000 0000 BBBB BBBB
 	; BBBB BBBB BBBr rrrr rrr0 xxx0 1000 0111
-	mov	dword [esi], 0x0 | 0x87
+.setup_pte:
+	mov	dword [esi], eax
 	mov	dword [esi+4], 0
-
-	; first pde (B = 0x200000-0x3fffff)
-	; P, W, U, WT, PS
-	; 0xxx xxxx xxxx 0000 0000 0000 BBBB BBBB
-	; BBBB BBBB BBBB BBBB BBBB 1000 0000 1111
-	mov	dword [esi+8], 0x200000 | 0x87
-	mov	dword [esi+12], 0
-
+	add	esi, 8
+	add	eax, 0x200000
+	sub	ecx, 1
+	jnz	.setup_pte
 
 	; enable PAE
 	mov	eax, cr4

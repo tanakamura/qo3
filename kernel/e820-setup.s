@@ -15,6 +15,7 @@ func_table:
 	dw	e820_table_info
 	dw	idt
 	dw	idtdesc
+	dw	init_tss64
 
 	bits	32
 	; esp is saved to sp_save
@@ -122,6 +123,14 @@ flush:
 return_to_esp32:
 	ret
 
+init_tss64:
+	mov	eax, tss64 + FIRSTSEGMENT_ADDR32
+	shr	eax, 16
+	mov	byte [tss64_16_23], al
+	shr	eax, 8
+	mov	byte [tss64_24_31], al
+	ret
+
 	section	.data
 idtdesc16:
 	dw	1024
@@ -148,11 +157,11 @@ gdt:
 	dw	0, 0
 	dd	0
 
-	; read write (8)
+	; 8 : read write
 	dw	0xffff, 0
 	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_RW32) | (0<<SEGDESC_DPL_SHIFT)
 
-	; exec read (16)
+	; 16 : exec read
 	dw	0xffff, 0
 	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC) | (0<<SEGDESC_DPL_SHIFT)
 
@@ -164,13 +173,28 @@ gdt:
 	dw	0xffff, FIRSTSEGMENT_ADDR32
 	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC16) | (0<<SEGDESC_DPL_SHIFT)
 
+	; 40 : exec read(64bit)
+	dw	0xffff, FIRSTSEGMENT_ADDR32
+	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC64) | (0<<SEGDESC_DPL_SHIFT)
+
 %define	BASE_0_16(a) ((a)&0xffff)
 %define	BASE_16_23(a) (((a)>>23)&0xff)
 %define	BASE_24_31(a) (((a)>>24)&0xff)
 %define	BASE_32_64(a) (((a)>>32)&0xffffffff)
 
-	; 40,48 : tss64
-	times 8	db 0
+	; 48,56 : tss64
+	dw	0x67, FIRSTSEGMENT_ADDR32 + tss64
+tss64_16_23:	
+	db	0
+	db	0x89 ; type + P
+	db	0
+tss64_24_31:
+	db	0
+
+	; 48
+tss64_32_63:
+	dd	0
+	dd	0
 
 gdtdesc:
 	dw	(8*(NUM_GDT_ENTRY)-1)
@@ -192,6 +216,7 @@ e820_table:
 e820_table_info:
 	resb	4
 
+	alignb	16
 tss64:
 	resb	128
 
@@ -212,4 +237,4 @@ idtdesc:
 
 	alignb	16
 idt:
-	
+	resb	2048

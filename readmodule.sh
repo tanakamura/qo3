@@ -26,8 +26,11 @@ ${MODNAME}_YACC_GEN_SRCS=\$(${MODNAME}_YACC_GEN_C) \$(${MODNAME}_YACC_HEADER)
 ${MODNAME}_C_SRCS=\$(filter %.c,\$(${MODNAME}_SOURCES)) \$(${MODNAME}_LEX_GEN_SRCS) \$(${MODNAME}_LEX_SRCS:.l=.flex.h)
 ${MODNAME}_CXX_SRCS=\$(filter %.cpp,\$(${MODNAME}_SOURCES))
 ${MODNAME}_ASM_SRCS=\$(filter %.s,\$(${MODNAME}_SOURCES))
+${MODNAME}_OBJ_SRCS=\$(filter %.o,\$(${MODNAME}_SOURCES))
+
 ${MODNAME}_OBJS=\$(patsubst %.s,%.o,\$(${MODNAME}_ASM_SRCS)) \
-    \$(patsubst %.c,%.o,\$(${MODNAME}_C_SRCS)) \$(patsubst %.cpp,%.o,\$(${MODNAME}_CXX_SRCS))
+    \$(patsubst %.c,%.o,\$(${MODNAME}_C_SRCS)) \$(patsubst %.cpp,%.o,\$(${MODNAME}_CXX_SRCS)) \
+    \$(${MODNAME}_OBJ_SRCS)
 	
 ${MODNAME}_DIRECTORY=$mod_dir
 
@@ -71,6 +74,10 @@ EOF
 
 
 	 target="${mod_dir}/${OUT_EXE}"
+
+	 if test "$EXTRA_TARGET" != ""; then
+	     target="${target} ${mod_dir}/${EXTRA_TARGET}"
+	 fi
      elif test "$OUT_LIB" != ""; then
 	 cat >>$tmp <<EOF
 ${mod_dir}/${OUT_LIB}: \$(${MODNAME}_OBJS)  ${depends}
@@ -124,11 +131,11 @@ ${POST_APPEND}
 EOF
      cat >$mod_dir/Makefile <<EOF
 all:
-	make -C $PWD $target COMPILE_DIR="${mod_dir}"
+	+make -C $PWD $target COMPILE_DIR="${mod_dir}"
 clean:
-	make -C $PWD ${MODNAME}_clean COMPILE_DIR="${mod_dir}"
+	+make -C $PWD ${MODNAME}_clean COMPILE_DIR="${mod_dir}"
 redep:
-	make -C $PWD redep COMPILE_DIR="${mod_dir}"
+	+make -C $PWD redep COMPILE_DIR="${mod_dir}"
 EOF
 
     )
