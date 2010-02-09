@@ -208,6 +208,7 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *id,
 		unimplemented("64 read pci config");
 		break;
 	}
+	printf("read config %x = %x\n", reg, *(UINT32*)val);
 	return AE_OK;
 }
 
@@ -266,6 +267,8 @@ AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS a,
 		break;
 	}
 
+	printf("read memory %lx = %x\n", (long)a, *val);
+
 	return AE_OK;
 }
 
@@ -274,7 +277,7 @@ AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS a,
 		  UINT32 val,
 		  UINT32 wid)
 {
-	//printf("write memory: %x\n", (int)a);
+	printf("write memory: %x\n", (int)a);
 	switch (wid) {
 	case 32:
 		mmio_write32(a, val);

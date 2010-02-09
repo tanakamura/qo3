@@ -10,6 +10,7 @@
 	extern	_end
 
 %include "kernel/firstsegment.inc"
+%include "kernel/save-regs.inc"
 
 	cpu	X64
 	bits	32
@@ -38,7 +39,7 @@ multiboot_header:
 	dd  _end ; bss_end_addr
 	dd  start2 ; entry
 
-%define STACK_SIZE 8192
+%define STACK_SIZE 16384
 %define NUM_MAX_CPU 16
 
 start2:
@@ -295,7 +296,7 @@ idt:
 	;  | ..      |
 	; 
 
-restore_regs:
+save_regs:
 	mov	[rsp+8+0], rax
 	mov	[rsp+8+8*1], rbx
 	mov	[rsp+8+8*2], rcx
@@ -330,7 +331,7 @@ restore_regs:
 	movdqa	[rsp+8+128+16*15], xmm15
 	ret
 
-save_regs:
+restore_regs:
 	mov	rax, [rsp+8+0]
 	mov	rbx, [rsp+8+8*1]
 	mov	rcx, [rsp+8+8*2]
@@ -379,8 +380,13 @@ save_regs:
 %1:
 	extern %2
 	SAVE_REGS
-	mov	rdi, [SAVE_REGS_OFFSET + 0 + rsp]
-	mov	rsi, [SAVE_REGS_OFFSET + 8 + rsp]
+	mov	rax, [SAVE_REGS_OFFSET + 32 + rsp] ; RSP
+	mov	[SAVE_REG_OFF_RSP + rsp], rax
+	mov	rdi, [SAVE_REGS_OFFSET + 0 + rsp] ; error code
+	mov	rsi, [SAVE_REGS_OFFSET + 8 + rsp] ; RIP
+	mov	rdx, [SAVE_REGS_OFFSET + 16 + rsp] ; CS
+	lea	rcx, [rsp] ; saved regs
+	mov	r8, [SAVE_REGS_OFFSET + 24 + rsp] ; flags
 	call	%2
 	RESTORE_REGS
 	iretd

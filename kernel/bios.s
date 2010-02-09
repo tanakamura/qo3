@@ -1,8 +1,10 @@
 	SECTION .text
 	global	bios_system_reset
-	bits	32
+	bits	64
 
-bios_system_reset:
+bios_system_reset: ; fixme in 64
+	jmp	bios_system_reset
+
 	lgdt	[gdtdesc]
 	mov	ax, 0x10
 	mov	ds, ax
@@ -11,7 +13,7 @@ bios_system_reset:
 	mov	gs, ax
 	mov	ss, ax
 
-	jmp	0x08:do_reset
+	;jmp	0x08:do_reset
 
 do_reset:
 	use16

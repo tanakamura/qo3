@@ -29,6 +29,7 @@
 #include "kernel/net/tcpip.h"
 #include "kernel/bench.h"
 #include "kernel/segment16.h"
+#include "kernel/self-info.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))

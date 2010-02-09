@@ -3,6 +3,8 @@
 #include "kernel/brk.h"
 #include "kernel/intrinsics.h"
 #include "kernel/bios.h"
+#include "kernel/self-info.h"
+#include "kernel/save-regs.h"
 
 void
 fatal(void)
@@ -83,12 +85,30 @@ GEN_UNHANDLED(calignment_check);
 GEN_UNHANDLED(cmachine_check);
 GEN_UNHANDLED(csimd_float);
 
-void
-cstack_segment_fault(uintptr_t rip,
-		     uintptr_t cs)
+static void
+dump_regs(uintptr_t *saved_regs)
 {
-	printf("stack sagment fault: rip=%08x cs=%08x\n",
-	       (int)rip, (int)cs);
+	printf("RAX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RAX]);
+	printf("RBX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RBX]);
+	printf("RCX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RCX]);
+	printf("RDX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RDX]);
+	printf("RSI = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RSI]);
+	printf("RDI = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RDI]);
+	printf("RSP = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RSP]);
+	printf("RBP = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RBP]);
+}
+
+void
+cstack_segment_fault(uintptr_t errcode,uintptr_t rip, uintptr_t cs, uintptr_t *saved_regs, uintptr_t flags)
+{
+	int off;
+	const char *sym = addr2sym(&off, rip);
+
+	printf("stack segment fault %lx @ %lx[%s+%x] flags=%lx\n",
+	       (unsigned long)errcode,
+	       (unsigned long)rip, sym, off,
+	       (unsigned long)flags);
+	dump_regs(saved_regs);
 
 	fatal();
 }
@@ -96,6 +116,12 @@ cstack_segment_fault(uintptr_t rip,
 void
 cgeneral_protection(uintptr_t errcode,uintptr_t rip, uintptr_t cs, uintptr_t *saved_regs)
 {
-	printf("general protection %x @ %x\n", (int)errcode, (int)rip);
+	int off;
+	const char *sym = addr2sym(&off, rip);
+
+	printf("general protection %x @ %x[%s+%x]\n", (int)errcode, (int)rip, sym, off);
+	dump_regs(saved_regs);
+
+
 	fatal();
 }

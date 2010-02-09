@@ -4,7 +4,8 @@
 kernel/QO3
 kernel/QO3-64
 kernel/addr-table
-Makefile
+*/Makefile
+*/*/Makefile
 *.tar.*
 dsdt
 dsdt.dsl
@@ -18,3 +19,4 @@ debugger.out
 *.map
 .depend*
 .submake.mk
+tmp-addr-table

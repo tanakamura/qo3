@@ -1,7 +1,7 @@
 #ifndef QO3_INTR_H
 #define QO3_INTR_H
 
-#include "lapic.h"
+#include "kernel/lapic.h"
 
 void cdiv_error(void);
 void cunknown_exception(int vec);
@@ -12,7 +12,6 @@ void coverflow(void);
 void cbound(void);
 void cbreakpoint(void);
 void csegment_not_present(void);
-void cstack_segment_fault(uintptr_t rip, uintptr_t cs);
 void cpage_fault(void);
 void cfp_error(void);
 void calignment_check(void);
