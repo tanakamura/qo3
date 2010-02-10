@@ -20,3 +20,4 @@ debugger.out
 .depend*
 .submake.mk
 tmp-addr-table
+gen

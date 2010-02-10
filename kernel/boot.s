@@ -481,6 +481,7 @@ stack:
 	resb	STACK_SIZE
 int_stack:
 	resb	STACK_SIZE
+int_stack_end:
 
 	global	have_too_many_cpus
 have_too_many_cpus:
@@ -504,28 +505,28 @@ pte:	resb	(4096*4)
 	align	16
 tss64:
 	dd	0		; reserved
-	dd	lo32(int_stack)	; rsp0 (4)
-	dd	hi32(int_stack)	; rsp0 (8)
-	dd	lo32(int_stack)	; rsp1 (c)
-	dd	hi32(int_stack)	; rsp1 (10)
-	dd	lo32(int_stack)	; rsp2 (14)
-	dd	hi32(int_stack)	; rsp2 (18)
+	dd	lo32(int_stack_end)	; rsp0 (4)
+	dd	hi32(int_stack_end)	; rsp0 (8)
+	dd	lo32(int_stack_end)	; rsp1 (c)
+	dd	hi32(int_stack_end)	; rsp1 (10)
+	dd	lo32(int_stack_end)	; rsp2 (14)
+	dd	hi32(int_stack_end)	; rsp2 (18)
 	dd	0		; reserved (1c)
 	dd	0		; reserved (20)
-	dd	lo32(int_stack)	; ist1(24)
-	dd	hi32(int_stack)	; ist1(28)
-	dd	lo32(int_stack)	; ist2(2c)
-	dd	hi32(int_stack)	; ist2(30)
-	dd	lo32(int_stack)	; ist3(34)
-	dd	hi32(int_stack)	; ist3(38)
-	dd	lo32(int_stack)	; ist4(3c)
-	dd	hi32(int_stack)	; ist4(40)
-	dd	lo32(int_stack)	; ist5(44)
-	dd	hi32(int_stack)	; ist5(48)
-	dd	lo32(int_stack)	; ist6(4c)
-	dd	hi32(int_stack)	; ist6(50)
-	dd	lo32(int_stack)	; ist7(54)
-	dd	hi32(int_stack)	; ist7(58)
+	dd	lo32(int_stack_end)	; ist1(24)
+	dd	hi32(int_stack_end)	; ist1(28)
+	dd	lo32(int_stack_end)	; ist2(2c)
+	dd	hi32(int_stack_end)	; ist2(30)
+	dd	lo32(int_stack_end)	; ist3(34)
+	dd	hi32(int_stack_end)	; ist3(38)
+	dd	lo32(int_stack_end)	; ist4(3c)
+	dd	hi32(int_stack_end)	; ist4(40)
+	dd	lo32(int_stack_end)	; ist5(44)
+	dd	hi32(int_stack_end)	; ist5(48)
+	dd	lo32(int_stack_end)	; ist6(4c)
+	dd	hi32(int_stack_end)	; ist6(50)
+	dd	lo32(int_stack_end)	; ist7(54)
+	dd	hi32(int_stack_end)	; ist7(58)
 	dd	0		; reserved(5c)
 	dd	0		; reserved(60)
 	dd	0		; reserved+iomap base(64)

@@ -11,7 +11,7 @@ all: do-it-all
 AS=nasm
 ASFLAGS=-felf$(ADDR_BITS) -O3
 CPPFLAGS=-D__QO3__=1
-COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m$(ADDR_BITS) -Wno-unused-parameter -mssse3 -Os
+COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m$(ADDR_BITS) -Wno-unused-parameter -mssse3 -Os -fno-omit-frame-pointer
 INCLUDES=-I./
 CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES) -Os -fno-strict-aliasing
 CXXFLAGS=$(COMMON_CFLAGS)
@@ -31,8 +31,8 @@ endif
 -include .depend
 
 first: submake
-	make -C . .depend
-	make -C . all
+	+make -C . .depend
+	+make -C . all
 
 dummy:
 
@@ -41,7 +41,9 @@ submake:
 	sh readmodule.sh > .submake.mk
 
 gen: $(ALL_GEN_SOURCES) 
-.depend: # $(ALL_GEN_SOURCES) 
+	touch gen
+
+.depend: gen
 	touch .depend
 	makedepend $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) -f.depend
 #gcc -MM -I. $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) $^ > $@

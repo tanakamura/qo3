@@ -610,6 +610,7 @@ do_help(void)
 	}
 }
 
+__attribute__((noinline))
 static void
 dump_info(void)
 {
@@ -741,7 +742,7 @@ cmain()
 		while (1) hlt();
 	}
 
-	//acpi_start();
+	acpi_start();
 
 	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
 	printf("num processor = %d\n", (int)apic_info.num_processor);

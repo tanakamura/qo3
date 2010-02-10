@@ -5,6 +5,7 @@
 #include "kernel/bios.h"
 #include "kernel/self-info.h"
 #include "kernel/save-regs.h"
+#include "kernel/backtrace.h"
 
 void
 fatal(void)
@@ -84,6 +85,8 @@ GEN_UNHANDLED(calignment_check);
 GEN_UNHANDLED(cmachine_check);
 GEN_UNHANDLED(csimd_float);
 
+#define REF_REG(sr,off) (*(uintptr_t*)(((unsigned char*)sr)+off))
+
 static void
 dump_regs(uintptr_t *saved_regs64)
 {
@@ -122,7 +125,7 @@ cgeneral_protection(uintptr_t errcode,uintptr_t rip, uintptr_t cs, uintptr_t *sa
 
 	printf("general protection %x @ %x[%s+%x]\n", (int)errcode, (int)rip, sym, off);
 	dump_regs(saved_regs);
-
+	dump_backtrace(REF_REG(saved_regs,SAVE_REG_OFF_RBP), 4, 4);
 
 	fatal();
 }
@@ -138,7 +141,7 @@ cpage_fault(uintptr_t errcode,uintptr_t rip, uintptr_t cs, uintptr_t *saved_regs
 
 	printf("page fault error=%x @ %x[%s+%x], addr=%lx\n", (int)errcode, (int)rip, sym, off, fault_address);
 	dump_regs(saved_regs);
-
+	dump_backtrace(REF_REG(saved_regs,SAVE_REG_OFF_RBP), 4, 4);
 
 	fatal();
 }
