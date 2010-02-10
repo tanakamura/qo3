@@ -12,7 +12,6 @@ void coverflow(void);
 void cbound(void);
 void cbreakpoint(void);
 void csegment_not_present(void);
-void cpage_fault(void);
 void cfp_error(void);
 void calignment_check(void);
 void cmachine_check(void);

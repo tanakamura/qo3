@@ -47,6 +47,10 @@ start2:
 	push	dword 0
 	popf
 
+	mov	eax, cr4
+	or	eax, (1<<9) ; enable SSE
+	mov	cr4, eax
+
 setup_segment16:
 	; copy program to SETUP_START
 	mov	ecx, e820_setup_end
@@ -113,8 +117,7 @@ start3:
 
 	call	memcpy4
 
-	movzx	eax, word [FIRSTSEGMENT_ADDR32 + IDTDESC*2]
-	add	eax, FIRSTSEGMENT_ADDR32
+	firstsegment_addr eax, IDTDESC
 	mov	word [eax], 8*256-1
 	mov	dword [eax+2], ebx
 	lidt	[eax]
@@ -270,15 +273,28 @@ idt:
 %endrep
 
 %define	SAVE_REGS_OFFSET 16*16 + 8*16
-%macro	SAVE_REGS 0
+%macro	SAVE_REGS_NO_ERROR_CODE 0
+	sub	rsp, SAVE_REGS_OFFSET+8
+	call	save_regs
+%endmacro
+
+%macro	RESTORE_REGS_NO_ERROR_CODE 0
+	call	restore_regs
+	add	rsp, SAVE_REGS_OFFSET+8
+%endmacro
+
+
+%macro	SAVE_REGS_WITH_ERROR_CODE 0
 	sub	rsp, SAVE_REGS_OFFSET
 	call	save_regs
 %endmacro
 
-%macro	RESTORE_REGS 0
+%macro	RESTORE_REGS_WITH_ERROR_CODE 0
 	call	restore_regs
-	add	rsp, SAVE_REGS_OFFSET
+	add	rsp, SAVE_REGS_OFFSET+8
 %endmacro
+
+
 
 
 	;  +8 for align to 16
@@ -290,11 +306,16 @@ idt:
 	;  +---------+ <- rsp (in handler)
 	;  |save area|
 	;  |(384byte)|
+	;  +---------+ <- alignd to 16
+	;  |padding 8|
 	;  +---------+
-	;  | RIP     |
-	;  | CS      |
-	;  | ..      |
-	; 
+	;  |IA32e    |
+	;  |interrupt|
+	;  |stack    |
+	;  |frame    |
+	;  |(40byte) |
+	;  +---------+ <- IST (aligned to 16)
+	;  |         |
 
 save_regs:
 	mov	[rsp+8+0], rax
@@ -348,58 +369,58 @@ restore_regs:
 	mov	r13, [rsp+8+8*13]
 	mov	r14, [rsp+8+8*14]
 	mov	r15, [rsp+8+8*15]
-	movdqa	xmm0, [rsp+128+8+16*0]
-	movdqa	xmm1, [rsp+128+8+16*1]
-	movdqa	xmm2, [rsp+128+8+16*2]
-	movdqa	xmm3, [rsp+128+8+16*3]
-	movdqa	xmm4, [rsp+128+8+16*4]
-	movdqa	xmm5, [rsp+128+8+16*5]
-	movdqa	xmm6, [rsp+128+8+16*6]
-	movdqa	xmm7, [rsp+128+8+16*7]
-	movdqa	xmm8, [rsp+128+8+16*8]
-	movdqa	xmm9, [rsp+128+8+16*9]
-	movdqa	xmm10, [rsp+128+8+16*10]
-	movdqa	xmm11, [rsp+128+8+16*11]
-	movdqa	xmm12, [rsp+128+8+16*12]
-	movdqa	xmm13, [rsp+128+8+16*13]
-	movdqa	xmm14, [rsp+128+8+16*14]
-	movdqa	xmm15, [rsp+128+8+16*15]
+	movdqa	xmm0, [rsp+8+128+16*0]
+	movdqa	xmm1, [rsp+8+128+16*1]
+	movdqa	xmm2, [rsp+8+128+16*2]
+	movdqa	xmm3, [rsp+8+128+16*3]
+	movdqa	xmm4, [rsp+8+128+16*4]
+	movdqa	xmm5, [rsp+8+128+16*5]
+	movdqa	xmm6, [rsp+8+128+16*6]
+	movdqa	xmm7, [rsp+8+128+16*7]
+	movdqa	xmm8, [rsp+8+128+16*8]
+	movdqa	xmm9, [rsp+8+128+16*9]
+	movdqa	xmm10, [rsp+8+128+16*10]
+	movdqa	xmm11, [rsp+8+128+16*11]
+	movdqa	xmm12, [rsp+8+128+16*12]
+	movdqa	xmm13, [rsp+8+128+16*13]
+	movdqa	xmm14, [rsp+8+128+16*14]
+	movdqa	xmm15, [rsp+8+128+16*15]
 	ret
 
 
 %macro gen_handler 2
 %1:
 	extern %2
-	SAVE_REGS
+	SAVE_REGS_NO_ERROR_CODE
 	call	%2
-	RESTORE_REGS
+	RESTORE_REGS_NO_ERROR_CODE
 	iretd
 %endmacro
 
-%macro	gen_handler_pass_regs 2
+%macro	gen_handler_pass_regs_error_code 2
 %1:
 	extern %2
-	SAVE_REGS
+	SAVE_REGS_WITH_ERROR_CODE
 	mov	rax, [SAVE_REGS_OFFSET + 32 + rsp] ; RSP
 	mov	[SAVE_REG_OFF_RSP + rsp], rax
 	mov	rdi, [SAVE_REGS_OFFSET + 0 + rsp] ; error code
 	mov	rsi, [SAVE_REGS_OFFSET + 8 + rsp] ; RIP
 	mov	rdx, [SAVE_REGS_OFFSET + 16 + rsp] ; CS
-	lea	rcx, [rsp] ; saved regs
+	mov	rcx, rsp ; saved regs
 	mov	r8, [SAVE_REGS_OFFSET + 24 + rsp] ; flags
 	call	%2
-	RESTORE_REGS
+	RESTORE_REGS_WITH_ERROR_CODE
 	iretd
 %endmacro
 
 %macro gen_handler_code 3
 %1:
 	extern %2
-	SAVE_REGS
+	SAVE_REGS_WITH_ERROR_CODE
 	mov	rdi, %3
 	call	%2
 	add	esp, 4
-	RESTORE_REGS
+	RESTORE_REGS_WITH_ERROR_CODE
 	iretd
 %endmacro
 
@@ -430,8 +451,9 @@ restore_regs:
 	gen_handler bound, cbound
 	gen_handler breakpoint, cbreakpoint
 	gen_handler segment_not_present, csegment_not_present
-	gen_handler_pass_regs stack_segment_fault, cstack_segment_fault
-	gen_handler page_fault, cpage_fault
+	gen_handler_pass_regs_error_code stack_segment_fault, cstack_segment_fault
+	gen_handler_pass_regs_error_code general_protection, cgeneral_protection
+	gen_handler_pass_regs_error_code page_fault, cpage_fault
 	gen_handler fp_error, cfp_error
 	gen_handler alignment_check, calignment_check
 	gen_handler machine_check, cmachine_check
@@ -445,23 +467,6 @@ restore_regs:
 
 	align	16
 idt_end:
-	
-
-
-
-general_protection:
-	extern	cgeneral_protection
-	SAVE_REGS
-	mov	rdi, [SAVE_REGS_OFFSET + 0 + rsp] ; error code
-	mov	rsi, [SAVE_REGS_OFFSET + 8 + rsp] ; RIP
-	mov	rdx, [SAVE_REGS_OFFSET + 16 + rsp] ; CS
-	lea	rcx, [rsp] ; saved regs
-	call	cgeneral_protection
-	RESTORE_REGS
-	add	rsp, 8 ; errcode
-	iretd
-
-	SECTION	.data
 
 hello32:
 	db	`hello 32bit.\r\n\0`
@@ -509,12 +514,18 @@ tss64:
 	dd	0		; reserved (20)
 	dd	lo32(int_stack)	; ist1(24)
 	dd	hi32(int_stack)	; ist1(28)
-	dq	0		; ist2(2c)
-	dq	0		; ist3(34)
-	dq	0		; ist4(3c)
-	dq	0		; ist5(44)
-	dq	0		; ist6(4c)
-	dq	0		; ist7(54)
+	dd	lo32(int_stack)	; ist2(2c)
+	dd	hi32(int_stack)	; ist2(30)
+	dd	lo32(int_stack)	; ist3(34)
+	dd	hi32(int_stack)	; ist3(38)
+	dd	lo32(int_stack)	; ist4(3c)
+	dd	hi32(int_stack)	; ist4(40)
+	dd	lo32(int_stack)	; ist5(44)
+	dd	hi32(int_stack)	; ist5(48)
+	dd	lo32(int_stack)	; ist6(4c)
+	dd	hi32(int_stack)	; ist6(50)
+	dd	lo32(int_stack)	; ist7(54)
+	dd	hi32(int_stack)	; ist7(58)
 	dd	0		; reserved(5c)
 	dd	0		; reserved(60)
 	dd	0		; reserved+iomap base(64)

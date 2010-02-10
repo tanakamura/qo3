@@ -79,23 +79,24 @@ GEN_UNHANDLED(coverflow);
 GEN_UNHANDLED(cbound);
 GEN_UNHANDLED(cbreakpoint);
 GEN_UNHANDLED(csegment_not_present);
-GEN_UNHANDLED(cpage_fault);
 GEN_UNHANDLED(cfp_error);
 GEN_UNHANDLED(calignment_check);
 GEN_UNHANDLED(cmachine_check);
 GEN_UNHANDLED(csimd_float);
 
 static void
-dump_regs(uintptr_t *saved_regs)
+dump_regs(uintptr_t *saved_regs64)
 {
-	printf("RAX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RAX]);
-	printf("RBX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RBX]);
-	printf("RCX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RCX]);
-	printf("RDX = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RDX]);
-	printf("RSI = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RSI]);
-	printf("RDI = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RDI]);
-	printf("RSP = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RSP]);
-	printf("RBP = %llx\n", (unsigned long long)saved_regs[SAVE_REG_OFF_RBP]);
+	unsigned char *saved_regs = (unsigned char*)saved_regs64;
+
+	printf("RAX = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RAX));
+	printf("RBX = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RBX));
+	printf("RCX = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RCX));
+	printf("RDX = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RDX));
+	printf("RSI = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RSI));
+	printf("RDI = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RDI));
+	printf("RSP = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RSP));
+	printf("RBP = %llx\n", *(unsigned long long*)(saved_regs+SAVE_REG_OFF_RBP));
 }
 
 void
@@ -120,6 +121,22 @@ cgeneral_protection(uintptr_t errcode,uintptr_t rip, uintptr_t cs, uintptr_t *sa
 	const char *sym = addr2sym(&off, rip);
 
 	printf("general protection %x @ %x[%s+%x]\n", (int)errcode, (int)rip, sym, off);
+	dump_regs(saved_regs);
+
+
+	fatal();
+}
+
+void
+cpage_fault(uintptr_t errcode,uintptr_t rip, uintptr_t cs, uintptr_t *saved_regs)
+{
+	int off;
+	uintptr_t fault_address;
+	const char *sym = addr2sym(&off, rip);
+
+	__asm__ ("mov %%cr2, %0":"=r"(fault_address));
+
+	printf("page fault error=%x @ %x[%s+%x], addr=%lx\n", (int)errcode, (int)rip, sym, off, fault_address);
 	dump_regs(saved_regs);
 
 

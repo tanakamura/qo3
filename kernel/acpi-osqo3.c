@@ -154,6 +154,7 @@ void *
 AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS paddr,
 		ACPI_SIZE l)
 {
+	puts("map");
 	return (void*)paddr;
 }
 
