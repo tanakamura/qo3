@@ -154,7 +154,6 @@ void *
 AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS paddr,
 		ACPI_SIZE l)
 {
-	puts("map");
 	return (void*)paddr;
 }
 
@@ -377,3 +376,4 @@ cacpi_intr(void)
 	puts("acpi");
 	write_local_apic(LAPIC_EOI, 0);
 }
+

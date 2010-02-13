@@ -12,7 +12,7 @@
 %define	INIT_TSS64	8
 
 %define	GDT_SIZE	128
-%define NUM_GDT_ENTRY	8
+%define NUM_GDT_ENTRY	9
 %define	E820_TABLE_SIZE	(512)
 %define TSS64_SIZE 128
 

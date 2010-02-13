@@ -2,7 +2,7 @@ MODNAME=QO3
 OUT_EXE=QO3-64
 EXTRA_TARGET=QO3
 CFLAGS=-mssse3
-NEED_MODULE="libc npr acpica net"
+NEED_MODULE="npr acpica net libc"
 SOURCES="boot.s bios.s main.c ns16550.c serial-stdio.c vga-stdio.c intr.c wait.c
 hpet.c smp.c code16.s acpi.c brk.c lapic.c ioapic.c pci.c gma.c event.c
 acpi-osqo3.c hda.c irq.c uhci.c bench.c self-info.c backtrace.c
@@ -10,7 +10,7 @@ acpi-osqo3.c hda.c irq.c uhci.c bench.c self-info.c backtrace.c
 
 AFTER_ALL_LIB=${mod_dir}/addr-table.o
 
-GENERATED="apboot16.o e820-setup.o boot.o firstsegment-const.h save-regs.h"
+GENERATED="apboot16.o e820-setup.o firstsegment-const.h save-regs.h"
 
 tat=${mod_dir}/tmp-addr-table 
 at=${mod_dir}/addr-table

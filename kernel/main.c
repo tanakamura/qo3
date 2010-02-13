@@ -679,7 +679,6 @@ dump_info(void)
 	}
 }
 
-
 void
 cmain()
 {
@@ -742,11 +741,6 @@ cmain()
 		while (1) hlt();
 	}
 
-	acpi_start();
-
-	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
-	printf("num processor = %d\n", (int)apic_info.num_processor);
-
 	setup_hpet_error = hpet_setup();
 	if (setup_hpet_error != HPET_SETUP_OK) {
 		puts("Setup hpet error. Assumes @ 0xfed00000");
@@ -759,6 +753,11 @@ cmain()
 			puts("hpet 64k protected");
 		}
 	}
+
+	acpi_start();
+
+	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
+	printf("num processor = %d\n", (int)apic_info.num_processor);
 
 	r = pci_init(&pci_root0, &pci_error);
 	if (r < 0) {

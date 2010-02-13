@@ -135,6 +135,13 @@ start64:
 	mov	esi, hello64
 	call	puts64
 
+	mov	rax, 64
+	mov	ds, eax
+	mov	es, eax
+	mov	fs, eax
+	mov	gs, eax
+	mov	ss, eax
+
 	mov	eax, 48
 	ltr	ax
 
@@ -394,7 +401,7 @@ restore_regs:
 	SAVE_REGS_NO_ERROR_CODE
 	call	%2
 	RESTORE_REGS_NO_ERROR_CODE
-	iretd
+	iretq
 %endmacro
 
 %macro	gen_handler_pass_regs_error_code 2
@@ -403,14 +410,12 @@ restore_regs:
 	SAVE_REGS_WITH_ERROR_CODE
 	mov	rax, [SAVE_REGS_OFFSET + 32 + rsp] ; RSP
 	mov	[SAVE_REG_OFF_RSP + rsp], rax
-	mov	rdi, [SAVE_REGS_OFFSET + 0 + rsp] ; error code
-	mov	rsi, [SAVE_REGS_OFFSET + 8 + rsp] ; RIP
-	mov	rdx, [SAVE_REGS_OFFSET + 16 + rsp] ; CS
-	mov	rcx, rsp ; saved regs
-	mov	r8, [SAVE_REGS_OFFSET + 24 + rsp] ; flags
+	lea	rdi, [rsp + SAVE_REGS_OFFSET] ; frame
+	mov	rsi, rsp ; saved regs
 	call	%2
 	RESTORE_REGS_WITH_ERROR_CODE
-	iretd
+	add	rsp, 8 ; error code
+	iretq
 %endmacro
 
 %macro gen_handler_code 3
@@ -419,9 +424,9 @@ restore_regs:
 	SAVE_REGS_WITH_ERROR_CODE
 	mov	rdi, %3
 	call	%2
-	add	esp, 4
 	RESTORE_REGS_WITH_ERROR_CODE
-	iretd
+	add	rsp, 8 ; error code
+	iretq
 %endmacro
 
 

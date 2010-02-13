@@ -10,15 +10,11 @@ void clapic_timer(void);
 void cnmi(void);
 void coverflow(void);
 void cbound(void);
-void cbreakpoint(void);
 void csegment_not_present(void);
 void cfp_error(void);
 void calignment_check(void);
 void cmachine_check(void);
 void csimd_float(void);
-
-void
-cgeneral_protection(uintptr_t error_code, uintptr_t rip, uintptr_t cs, uintptr_t *saved_regs);
 
 #define INTVEC_LAPIC_TIMER 64
 #define INTVEC_LAPIC_ERROR 65

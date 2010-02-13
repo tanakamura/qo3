@@ -174,7 +174,7 @@ gdt:
 	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC16) | (0<<SEGDESC_DPL_SHIFT)
 
 	; 40 : exec read(64bit)
-	dw	0xffff, FIRSTSEGMENT_ADDR32
+	dw	0xffff, 0
 	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC64) | (0<<SEGDESC_DPL_SHIFT)
 
 %define	BASE_0_16(a) ((a)&0xffff)
@@ -191,10 +191,14 @@ tss64_16_23:
 tss64_24_31:
 	db	0
 
-	; 48
+	; 56
 tss64_32_63:
 	dd	0
 	dd	0
+
+	; 64
+	dw	0xffff, 0
+	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_RW64) | (0<<SEGDESC_DPL_SHIFT)
 
 gdtdesc:
 	dw	(8*(NUM_GDT_ENTRY)-1)

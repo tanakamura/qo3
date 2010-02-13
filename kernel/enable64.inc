@@ -71,7 +71,7 @@ init_pml4:
 	rdmsr
 	or	eax, (1<<8)
 	wrmsr
-	
+
 	; enable PG! Go IA32e mode!
 	mov	eax, cr0
 	or	eax, (1<<31)
