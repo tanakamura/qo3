@@ -30,6 +30,7 @@
 #include "kernel/bench.h"
 #include "kernel/segment16.h"
 #include "kernel/self-info.h"
+#include "kernel/page.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
@@ -703,6 +704,9 @@ cmain()
 		}
 	}
 	cpuid(1, ver, bidx, extf, func);
+
+	init_kernel_address_space();
+
 	brk_init();
 
 	ns16550_init();
@@ -765,16 +769,24 @@ cmain()
 		pci_print_init_error(&pci_error);
 	}
 
+	lspci(&pci_root0);
+	lspci_tree(&pci_root0);
+
 	r = hda_init(&pci_root0, &hda_err);
 	if (r < 0) {
 		puts("hda init error");
 	}
+
+	printf("link = %p, 8169 = %p\n", &tcpip_link, &r8169_dev);
+
 
 	r = r8169_init(&pci_root0, &r8169_dev, &r8169_err, 0);
 	if (r < 0) {
 		puts("r8169 init error");
 		r8169_print_init_error(&r8169_err);
 	}
+
+	printf("link = %p, 8169 = %p\n", &tcpip_link, &r8169_dev);
 
 	/*
 	r = gma_init(&gma_error);
@@ -785,10 +797,14 @@ cmain()
 	*/
 	(void)gma_error;
 
+	/*
 	r = uhci_init(&pci_root0, &uhci_dev, &uhci_err, 0);
 	if (r < 0) {
 		puts("uhci init error");
 	}
+	*/
+	(void)uhci_err;
+	(void)uhci_dev;
 
 	ns16550_init_intr();
 

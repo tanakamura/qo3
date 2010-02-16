@@ -11,7 +11,7 @@ all: do-it-all
 AS=nasm
 ASFLAGS=-felf$(ADDR_BITS) -O3
 CPPFLAGS=-D__QO3__=1
-COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m$(ADDR_BITS) -Wno-unused-parameter -mssse3 -Os -fno-omit-frame-pointer
+COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m$(ADDR_BITS) -Wno-unused-parameter -mssse3 -Os -fno-omit-frame-pointer -mmovbe
 INCLUDES=-I./
 CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES) -Os -fno-strict-aliasing
 CXXFLAGS=$(COMMON_CFLAGS)

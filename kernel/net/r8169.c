@@ -109,6 +109,10 @@ static void
 reset_state(struct r8169_dev *dev)
 {
 	int i;
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
 
 	w16(dev, InterruptMask, 0x0); /* disable all interrupt */
 	w16(dev, InterruptStatus, ~0); /* clear all interrupt */
@@ -129,6 +133,10 @@ reset_state(struct r8169_dev *dev)
 		dev->rx_desc[i*4 + 2] = 0; /* lo */
 		dev->rx_desc[i*4 + 3] = 0; /* hi */
 	}
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
 
 	dev->tx_desc[(R8169_NUM_BUFFER-1)*4] = EOR;
 	dev->rx_desc[(R8169_NUM_BUFFER-1)*4] = EOR;
@@ -165,9 +173,19 @@ reset_state(struct r8169_dev *dev)
 	wAddr(dev, RDSAR, (uintptr_t)dev->rx_desc);
 	wAddr(dev, TNPDS, (uintptr_t)dev->tx_desc);
 
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
+
 	w8(dev, Command, (1<<2)|(1<<3)); /* Tx Enable */
 	w16(dev, InterruptMask, 0xffef); /* enable all interrupt (RDU?) */
 	w8(dev, CR, 0x0);		 /* lock */
+
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
 }
 
 static enum irq_handle_status
@@ -265,8 +283,6 @@ r8169_init(struct pci_root *pci,
 			    p[i].device_id == 0x8168) {
 				/* fixme 64 */
 				uint32_t memar = pci_conf_read32(p+i, 0x18);
-
-				printf("%x\n", (int)memar);
 				if (memar) {
 					base = memar & 0xffffff00;
 					if ((memar & 0xf3) == 0) {

@@ -1,6 +1,7 @@
 	SECTION .text
 	global	_start
 	global	generic_int
+	global	kernel_address_space
 	extern	cmain
 	extern	cAP_main
 	extern	ap_stack
@@ -39,7 +40,7 @@ multiboot_header:
 	dd  _end ; bss_end_addr
 	dd  start2 ; entry
 
-%define STACK_SIZE 16384
+%define STACK_SIZE 32768
 %define NUM_MAX_CPU 16
 
 start2:
@@ -492,15 +493,16 @@ int_stack_end:
 have_too_many_cpus:
 	resb	4
 
-
+	; startup page = 16KB
 	alignb	4096
+kernel_address_space:
 pml4:	resb	4096
 	alignb	4096
 pdp:	resb	4096
 	alignb	4096
 pdir:	resb	4096
 	alignb	4096
-pte:	resb	(4096*4)
+pte:	resb	4096
 
 %define lo32(a) a
 %define hi32(a) 0

@@ -41,12 +41,22 @@ init_pml4:
 	mov	dword [esi+24], eax ; 3-4GB
 	mov	dword [esi+28], 0
 
-
 	; ** pdir **
 	mov	esi, pdir
 
-	; setup 2048 page (2048 * 2MB = 4GB)
-	mov	ecx, 2048
+	; number of startup page is
+	; ALIGN_UP(offset to _end, 2M) / 2M
+	; 2M = shift 21
+
+	; ALIGN UP
+	mov	ecx, _end
+	add	ecx, (2 * 1024 * 1024) - 1
+	and	ecx, ~((2 * 1024 * 1024) - 1)
+
+	; ecx = ecx / 2M
+	shr	ecx, 21
+
+	; ecx = number of page
 	mov	eax, 0x87
 
 	; setup direct mapping(0-4GB)
