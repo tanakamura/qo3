@@ -5,7 +5,11 @@
 extern "C" {
 #endif
 
+#ifdef __x86_64__
+typedef unsigned long size_t;
+#else
 typedef unsigned int size_t;
+#endif
 #define NULL (0)
 
 #ifdef __cplusplus

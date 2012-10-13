@@ -2,6 +2,7 @@
 #include "kernel/pci.h"
 #include "kernel/pci-id.h"
 #include "kernel/wait.h"
+#include "kernel/addr.h"
 #include <stdio.h>
 
 
@@ -133,15 +134,15 @@ hda_init(struct pci_root *pci, struct hda_init_error *err)
 
 	mmio_write16(base + WAKEEN, 0);
 
-	mmio_write32(base + CORBLBASE, (uint32_t)corb);
-	mmio_write32(base + CORBUBASE, 0);
+	mmio_write32(base + CORBLBASE, ADDR_LOW32(corb));
+	mmio_write32(base + CORBUBASE, ADDR_HI32(corb));
 	mmio_write32(base + CORBSIZE, CORBSIZE_1024);
 	mmio_write32(base + CORBRP, CORBRP_RESET);
 	mmio_write32(base + CORBWP, 0);
 	mmio_write32(base + RIRBWP, RIRBWP_RESET);
 
-	mmio_write32(base + RIRBLBASE, (uint32_t)rirb);
-	mmio_write32(base + RIRBUBASE, 0);
+	mmio_write32(base + RIRBLBASE, ADDR_LOW32(rirb));
+	mmio_write32(base + RIRBUBASE, ADDR_HI32(rirb));
 	mmio_write32(base + RIRBSIZE, RIRBSIZE_2048);
 
 	return 0;

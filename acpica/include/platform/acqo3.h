@@ -1,8 +1,11 @@
 
 #include "acgcc.h"
-#include <stdlib.h>
 
+#ifdef __x86_64__
+#define ACPI_MACHINE_WIDTH 64
+#else
 #define ACPI_MACHINE_WIDTH 32
+#endif
 typedef unsigned long long COMPILER_DEPENDENT_UINT64;
 typedef signed long long COMPILER_DEPENDENT_INT64;
 #define ACPI_SYSTEM_XFACE

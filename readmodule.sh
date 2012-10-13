@@ -74,7 +74,7 @@ EOF
      elif test "$OUT_LIB" != ""; then
 	 cat >>$tmp <<EOF
 ${mod_dir}/${OUT_LIB}: \$(${MODNAME}_OBJS)  ${depends}
-	ar rsu \$@ \$^
+	\$(AR) rsu \$@ \$^
 EOF
 	 cat <<EOF
 ALL_LIBPATH+=-L${mod_dir}

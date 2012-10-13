@@ -199,8 +199,9 @@ build_tree(int *tree,
 		if (devs[i].bcc == PCI_CLS_BRIDGE &&
 		    devs[i].scc == PCI_SUBCLS_PCIPCI_BRIDGE)
 		{
+			/* This bridge is child of cur_bus */
 			if (BDF_BUS(devs[i].busdevfn) == cur_bus) {
-				int pbus = pci_conf_read32(devs+i, PCI_PRIMARY_BUS);
+				int pbus = pci_conf_read32(&devs[i], PCI_PRIMARY_BUS);
 				int bus = (pbus>>8)&0xff;
 				int num_child;
 
@@ -274,7 +275,7 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 
 	entry = mcfg + 44;
 	address = ACPI_R64ADDR(entry, 0);
-	if (address & ~0xf0000000) {
+	if (address & ~0xf8000000) {
 		error->code = PCI_MCFG_INVALID_BASE;
 		return -1;
 	}
@@ -283,6 +284,8 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 
 	start = ACPI_R8(entry, 10);
 	end = ACPI_R8(entry, 11);
+
+	pci->nr_bus = end-start;
 
 	start <<= 20;
 	end <<= 20;
@@ -336,7 +339,8 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 			scc = mmio_read8(mmio_addr + 0x0a);
 			pi = mmio_read8(mmio_addr + 0x09);
 
-			pci->devices[cur_dev].busdevfn = mmio_addr;
+			pci->devices[cur_dev].busdevfn = bus|dev|0;
+			pci->devices[cur_dev].conf_addr = mmio_addr;
 			pci->devices[cur_dev].vendor_id = id&0xffff;
 			pci->devices[cur_dev].device_id = id>>16U;
 			pci->devices[cur_dev].bcc = bcc;
@@ -359,7 +363,8 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 					scc = mmio_read8(mmio_addr + 0x0a);
 					pi = mmio_read8(mmio_addr + 0x09);
 
-					pci->devices[cur_dev].busdevfn = mmio_addr;
+					pci->devices[cur_dev].busdevfn = bus|dev|fn;
+					pci->devices[cur_dev].conf_addr = mmio_addr;
 					pci->devices[cur_dev].vendor_id = id&0xffff;
 					pci->devices[cur_dev].device_id = id>>16U;
 					pci->devices[cur_dev].bcc = bcc;
@@ -398,7 +403,9 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 	tree[0] = 0;
 	bridge_id = 1;		/* 0 for root */
 
-	num_child = build_tree(tree, bridges, &bridge_id, devs, num_dev, 0, 3);
+	/*lspci(pci);*/
+
+	num_child = build_tree(tree, bridges, &bridge_id, devs, num_dev, 0, 2);
 	tree[1] = num_child;
 
 	pci->tree = tree;
@@ -463,7 +470,7 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 	uintptr_t bus, dev;
 	unsigned int num_dev = 0, cur_dev;
 
-	for (bus=0; bus<256; bus++) {
+	for (bus=0; bus<pci->nr_bus; bus++) {
 		for (dev=0; dev<32; dev++) {
 			uint32_t id, header;
 			id = conf32(bus, dev, 0, 0);
@@ -490,7 +497,7 @@ pci_init(struct pci_root *pci, struct pci_init_error *error)
 	pci->num_dev = num_dev;
 	cur_dev = 0;
 
-	for (bus=0; bus<255; bus++) {
+	for (bus=0; bus<pci->nr_bus; bus++) {
 		uintptr_t dev;
 		for (dev=0; dev<32; dev++) {
 			uint32_t id = conf32(bus, dev, 0, 0);
@@ -610,6 +617,7 @@ lspci_tree0(struct pci_root *pci,
 	int i, n;
 	struct pci_bridge *b = &pci->bridges[pci->tree[off+PCITREE_OFFSET_BRIDGEID]];
 	struct pci_device *node = &pci->devices[b->devid];
+	(void)node;
 
 	printf("%04lx:%02lx.%02lx %d\n",
 	       BDF_BUS(node->busdevfn),
@@ -637,4 +645,22 @@ lspci_tree0(struct pci_root *pci,
 void
 lspci_tree(struct pci_root *pci) {
 	lspci_tree0(pci, 0);
+}
+
+void
+pci_print_init_error(struct pci_init_error *error)
+{
+	switch (error->code) {
+	case PCI_MCFG_NOT_FOUND:
+		puts("mcfg not found");
+		break;
+
+	case PCI_TOO_MANY_MCFG:
+		puts("too many mcfg");
+		break;
+
+	case PCI_MCFG_INVALID_BASE:
+		puts("invalid base");
+		break;
+	}
 }

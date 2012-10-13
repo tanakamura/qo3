@@ -5,8 +5,16 @@
 	extern	cAP_main
 	extern	cinterrupt_main
 	extern	ap_stack
+	extern	e820_setup
+	extern	e820_setup_end
+
+%include "kernel/firstsegment.inc"
+
+	%define	gdt0	GDT_ADDR32
+	%define	gdtdesc0	GDTDESC_OFFSET_ADDR32
 
 	cpu	P4
+	bits	32
 
 %include	"kernel/gdt.inc"
 
@@ -20,7 +28,6 @@ addr100000:
 	dd 0	      ; flags
 	dd -0x1badb002 ; checksum
 
-
 %define STACK_SIZE 8192
 %define NUM_MAX_CPU 16
 
@@ -29,7 +36,20 @@ start2:
 	push	dword 0
 	popf
 
-	lgdt	[gdtdesc]
+	; copy gdt to 0
+	mov	esi, gdt
+	mov	edi, gdt0
+	mov	ecx, 8*(NUM_GDT_ENTRY)
+
+	call	memcpy4
+
+	mov	ax, (8*(NUM_GDT_ENTRY)-1)
+	mov	word [gdtdesc0], ax
+	mov	eax, gdt0
+	mov	dword [gdtdesc0+2], eax
+
+	lgdt	[gdtdesc0]
+
 	mov	eax, 8
 
 	mov	ds, eax
@@ -40,7 +60,8 @@ start2:
 
 	jmp	16:start3
 start3:
-	mov	eax, 0x0
+	call	run_setup_e820
+	xor	eax, eax
 
 	out	0x20, al
 	out	0xA0, al
@@ -65,12 +86,8 @@ start3:
 	out	0xa1, al
 
 	lidt	[idtdesc]
-
 	sti
-
-	call	cmain
-
-
+	jmp	cmain
 
 	; AP routine
 	align	0x100
@@ -87,7 +104,7 @@ ap_start32:
 	add	eax, ap_stack
 	mov	esp, eax
 
-	lgdt	[gdtdesc]
+	lgdt	[gdtdesc0]
 	mov	eax, 8
 
 	mov	ds, eax
@@ -102,6 +119,40 @@ ap_start2:
 	sti
 
 	call	cAP_main
+
+
+run_setup_e820:
+	; copy program to SETUP_START
+	mov	ecx, e820_setup_end
+	sub	ecx, e820_setup + E820_SETUP_START ; size of program
+	mov	edi, E820_SETUP_START_ADDR32
+	mov	esi, e820_setup + E820_SETUP_START
+
+	call	memcpy4
+
+	mov	eax, 24
+	mov	ds, eax
+	mov	es, eax
+	mov	fs, eax
+	mov	gs, eax
+	mov	ss, eax
+
+	jmp	32: E820_SETUP_START
+
+memcpy4:
+	; clobbered eax, edx
+	; src esi
+	; dest edi
+	; num ecx
+	mov	edx, 0
+memcpy4_loop:	
+	mov	eax, dword [esi + edx]
+	mov	dword [edi + edx], eax
+	add	edx, 4
+	cmp	edx, ecx
+	jnz	memcpy4_loop
+
+	ret
 
 too_many_cpu:
 	mov	eax, 1
@@ -241,6 +292,11 @@ xsave_buffer:
 
 stack:
 	resb	STACK_SIZE
+
+int_stack:
+	resb	STACK_SIZE
+
+
 	global	have_too_many_cpus
 have_too_many_cpus:
 	resb	4
@@ -248,6 +304,22 @@ have_too_many_cpus:
 	SECTION	.rodata
 	align	16
 gdt:
+	; limit 16
+	; base 16
+	;
+	; base 8(0-7)
+	; type 4(8-11)
+	; 1    1(12)
+	; dpl  2(13-14)
+	; p    1(15)
+	;
+	; limit 4(16-19)
+	; avl   1(20)
+	; l     1(21)
+	; d     1(22)
+	; g     1(23)
+	; base  8(24-31)
+
 	dw	0, 0
 	dd	0
 
@@ -259,11 +331,44 @@ gdt:
 	dw	0xffff, 0
 	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC) | (0<<SEGDESC_DPL_SHIFT)
 
-gdtdesc:
-	dw	8*3-1
-	dd	gdt
+	; 24 : real data
+	dw	0xffff, FIRSTSEGMENT_ADDR32
+	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_RW16) | (0<<SEGDESC_DPL_SHIFT)
+
+	; 32 : real code
+	dw	0xffff, FIRSTSEGMENT_ADDR32
+	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC16) | (0<<SEGDESC_DPL_SHIFT)
+
+%define	BASE_0_16(a) ((a)&0xffff)
+%define	BASE_16_23(a) (((a)>>23)&0xff)
+%define	BASE_24_31(a) (((a)>>24)&0xff)
+%define	BASE_32_64(a) (((a)>>32)&0xffffffff)
+
+	; 40,48 : tss64
+	
 
 idtdesc:
 	dw	8*256-1
 	dd	idt
 
+
+	align	8
+%if 0
+tss64:
+	dd	0		; reserved
+	dq	int_stack	; rsp0 (4)
+	dq	int_stack	; rsp1 (c)
+	dq	int_stack	; rsp2 (14)
+	dd	0		; reserved (1c)
+	dd	0		; reserved (20)
+	dq	int_stack	; ist1(24)
+	dq	0		; ist2(2c)
+	dq	0		; ist3(34)
+	dq	0		; ist4(3c)
+	dq	0		; ist5(44)
+	dq	0		; ist6(4c)
+	dq	0		; ist7(54)
+	dd	0		; reserved(5c)
+	dd	0		; reserved(60)
+	dd	0		; reserved+iomap base(64)
+%endif
