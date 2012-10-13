@@ -32,6 +32,19 @@ strcpy(char *dest, const char *src)
         return ret;
 }
 
+char *
+strncpy(char *dest, const char *src, size_t n)
+{
+        char *ret = dest;
+	size_t i;
+
+	for (i=0; i<n; i++) {
+		if (src[i] == '\0') break;
+		dest[i] = src[i];
+	}
+        return ret;
+}
+
 int
 strcmp(const char *s1, const char *s2)
 {
@@ -59,4 +72,15 @@ memcmp(const void *s1, const void *s2, size_t n)
                 }
         }
         return 0;
+}
+
+char *
+strcat(char *dest, const char *src)
+{
+	size_t dl = strlen(dest);
+	size_t sl = strlen(src);
+
+	memcpy(dest + dl, src, sl);
+
+	return dest;
 }

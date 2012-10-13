@@ -1,6 +1,7 @@
 MODNAME=acpica
 OUT_LIB=libacpica.a
-dirs="utilities events namespace executer dispatcher hardware parser tables resources"
+NEED_MODULE="libc"
+dirs="utilities events namespace executer dispatcher hardware parser tables resources disassembler"
 SOURCES=""
 for i in $dirs
 do

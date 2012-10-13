@@ -70,6 +70,6 @@ uhci_init(struct pci_root *pci,
 void
 uhci_dump(struct uhci_dev *dev)
 {
-	printf("addr base: %x\n", (int)dev->iobase);
-	printf(" usbst: %x\n", r16(dev,0));
+	printf("addr base: %lx\n", dev->iobase);
+	printf(" usbst: %x\n", (int)r16(dev,0));
 }

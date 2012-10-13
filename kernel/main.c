@@ -28,7 +28,9 @@
 #include "kernel/uhci.h"
 #include "kernel/net/tcpip.h"
 #include "kernel/bench.h"
-#include "kernel/firstsegment.h"
+#include "kernel/segment16.h"
+#include "kernel/self-info.h"
+#include "kernel/page.h"
 
 #define SIZEOF_STR(p) (sizeof(p) - 1)
 #define WRITE_STR(p) ns16550_write_text_poll(p, SIZEOF_STR(p))
@@ -434,7 +436,7 @@ do_r8169_dump(void)
 }
 
 static unsigned char buffer[4096] __attribute__((aligned(4096)));
-static unsigned char buffer_many[16][4096] __attribute__((aligned(4096)));
+static unsigned char buffer_many[2][4096] __attribute__((aligned(4096)));
 
 static void
 do_r8169_tx(void)
@@ -547,6 +549,16 @@ do_hello_ap(void)
 	post_command_to_ap(a, AP_COMMAND_HELLO);
 }
 
+void
+do_list_ap(void)
+{
+	int i;
+	for (i=0; i<NUM_MAX_CPU; i++) {
+		if (smp_table[i].flags & PROCESSOR_ENABLED) {
+			printf("hello %d!\n", i);
+		}
+	}
+}
 
 #define NAME_LEN(name) name, sizeof(name)-1
 static void do_help(void);
@@ -559,6 +571,7 @@ static struct command commands[] = {
 	{NAME_LEN("show_mtrr"), show_mtrr},
 	{NAME_LEN("boot_ap"), boot_ap},
 	{NAME_LEN("hello_ap"), do_hello_ap},
+	{NAME_LEN("list_ap"), do_list_ap},
 	{NAME_LEN("div0"), div0},
 	{NAME_LEN("int3"), int3},
 	{NAME_LEN("hlt"), do_hlt},
@@ -598,6 +611,7 @@ do_help(void)
 	}
 }
 
+__attribute__((noinline))
 static void
 dump_info(void)
 {
@@ -641,10 +655,10 @@ dump_info(void)
 	printf("hpet period = %d\n", hpet_period);
 	printf("hpet freq .=. %d[kHz]\n", 1000000000/(hpet_period/1000));
 
-	e820_table_info = (short*)E820_TABLE_INFO_OFFSET_ADDR32;
+	e820_table_info = (short*)get_segment16_addr(E820_TABLE_INFO);
 	if (e820_table_info[0]) {
 		int n = e820_table_info[1], i;
-		uint32_t *e820_table = (uint32_t*)E820_TABLE_ADDR32;
+		uint32_t *e820_table = (uint32_t*)get_segment16_addr(E820_TABLE);
 
 		printf("size of e820 table: %d\n", n);
 
@@ -665,7 +679,6 @@ dump_info(void)
 		puts("no smap");
 	}
 }
-
 
 void
 cmain()
@@ -691,6 +704,9 @@ cmain()
 		}
 	}
 	cpuid(1, ver, bidx, extf, func);
+
+	init_kernel_address_space();
+
 	brk_init();
 
 	ns16550_init();
@@ -729,11 +745,6 @@ cmain()
 		while (1) hlt();
 	}
 
-	acpi_start();
-
-	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
-	printf("num processor = %d\n", (int)apic_info.num_processor);
-
 	setup_hpet_error = hpet_setup();
 	if (setup_hpet_error != HPET_SETUP_OK) {
 		puts("Setup hpet error. Assumes @ 0xfed00000");
@@ -747,22 +758,35 @@ cmain()
 		}
 	}
 
+	acpi_start();
+
+	printf("IO APIC @ %08x\n", (int)apic_info.ioapic_addr);
+	printf("num processor = %d\n", (int)apic_info.num_processor);
+
 	r = pci_init(&pci_root0, &pci_error);
 	if (r < 0) {
 		puts("pci init error");
 		pci_print_init_error(&pci_error);
 	}
 
+	lspci(&pci_root0);
+	lspci_tree(&pci_root0);
+
 	r = hda_init(&pci_root0, &hda_err);
 	if (r < 0) {
 		puts("hda init error");
 	}
+
+	printf("link = %p, 8169 = %p\n", &tcpip_link, &r8169_dev);
+
 
 	r = r8169_init(&pci_root0, &r8169_dev, &r8169_err, 0);
 	if (r < 0) {
 		puts("r8169 init error");
 		r8169_print_init_error(&r8169_err);
 	}
+
+	printf("link = %p, 8169 = %p\n", &tcpip_link, &r8169_dev);
 
 	/*
 	r = gma_init(&gma_error);
@@ -773,10 +797,14 @@ cmain()
 	*/
 	(void)gma_error;
 
+	/*
 	r = uhci_init(&pci_root0, &uhci_dev, &uhci_err, 0);
 	if (r < 0) {
 		puts("uhci init error");
 	}
+	*/
+	(void)uhci_err;
+	(void)uhci_dev;
 
 	ns16550_init_intr();
 

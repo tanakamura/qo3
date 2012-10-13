@@ -1,22 +1,31 @@
 	SECTION .text
 	global	_start
 	global	generic_int
+	global	kernel_address_space
+	global	startup_pte
+	global	startup_pdir
+	global	startup_pdp
+	global	startup_pml4
 	extern	cmain
 	extern	cAP_main
-	extern	cinterrupt_main
 	extern	ap_stack
 	extern	e820_setup
 	extern	e820_setup_end
+	extern	_edata
+	extern	_end
 
 %include "kernel/firstsegment.inc"
+%include "kernel/save-regs.inc"
 
-	%define	gdt0	GDT_ADDR32
-	%define	gdtdesc0	GDTDESC_OFFSET_ADDR32
-
-	cpu	P4
+	cpu	X64
 	bits	32
 
 %include	"kernel/gdt.inc"
+
+%macro	firstsegment_addr 2
+	movzx	%1, word [FIRSTSEGMENT_ADDR32 + %2*2]
+	add	%1, FIRSTSEGMENT_ADDR32
+%endmacro
 
 _start:
 addr100000:
@@ -24,11 +33,18 @@ addr100000:
 
 	align 4
 
-	dd 0x1badb002 ; magic
-	dd 0	      ; flags
-	dd -0x1badb002 ; checksum
+multiboot_header:
+	dd  0x1badb002 ; magic
+	dd  0x00010000 ; flags
+	dd -0x1baeb002 ; checksum
 
-%define STACK_SIZE 8192
+	dd  multiboot_header ; header_addr
+	dd  _start ; load_addr
+	dd  _edata ; load_end_addr
+	dd  _end ; bss_end_addr
+	dd  start2 ; entry
+
+%define STACK_SIZE 32768
 %define NUM_MAX_CPU 16
 
 start2:
@@ -36,19 +52,24 @@ start2:
 	push	dword 0
 	popf
 
-	; copy gdt to 0
-	mov	esi, gdt
-	mov	edi, gdt0
-	mov	ecx, 8*(NUM_GDT_ENTRY)
+	mov	eax, cr4
+	or	eax, (1<<9) ; enable SSE
+	mov	cr4, eax
 
+setup_segment16:
+	; copy program to SETUP_START
+	mov	ecx, e820_setup_end
+	sub	ecx, e820_setup ; size of program
+	mov	esi, e820_setup
+	mov	edi, FIRSTSEGMENT_ADDR32
+
+	; esi:src = e820_setup (code16.s)
+	; edi:dst = FIRSTSEGMENT
+	; ecx:size = (e820_setup_end - e820_setup)
 	call	memcpy4
 
-	mov	ax, (8*(NUM_GDT_ENTRY)-1)
-	mov	word [gdtdesc0], ax
-	mov	eax, gdt0
-	mov	dword [gdtdesc0+2], eax
-
-	lgdt	[gdtdesc0]
+	movzx	eax, word [FIRSTSEGMENT_ADDR32 + GDTDESC*2]
+	lgdt	[eax + FIRSTSEGMENT_ADDR32]
 
 	mov	eax, 8
 
@@ -60,6 +81,7 @@ start2:
 
 	jmp	16:start3
 start3:
+
 	call	run_setup_e820
 	xor	eax, eax
 
@@ -85,9 +107,65 @@ start3:
 	out	0x21, al
 	out	0xa1, al
 
-	lidt	[idtdesc]
+	mov	ecx, tss64_end-tss64
+	mov	esi, tss64
+	firstsegment_addr edi, TSS64
+	call	memcpy4
+
+	firstsegment_addr eax, INIT_TSS64
+	call	eax
+
+	mov	ecx, idt_end-idt
+	mov	esi, idt
+	firstsegment_addr edi, IDT
+	mov	ebx, edi
+
+	call	memcpy4
+
+	firstsegment_addr eax, IDTDESC
+	mov	word [eax], 8*256-1
+	mov	dword [eax+2], ebx
+	lidt	[eax]
+
+	call	init_ns16550
+	mov	esi, hello32
+	call	puts
+
+%include	"kernel/enable64.inc"
+
+	jmp	40:start64
+
+	bits	64
+start64:
+	mov	esi, hello64
+	call	puts64
+
+	mov	rax, 64
+	mov	ds, eax
+	mov	es, eax
+	mov	fs, eax
+	mov	gs, eax
+	mov	ss, eax
+
+	mov	eax, 48
+	ltr	ax
+
 	sti
+
 	jmp	cmain
+
+
+	bits	32
+
+clear_table:
+	xor	ecx, ecx
+.loop:
+	mov	dword [8*ecx + esi], 0;
+	add	ecx, 1
+	cmp	ecx, 512
+	jne	.loop
+
+	ret
 
 	; AP routine
 	align	0x100
@@ -104,7 +182,8 @@ ap_start32:
 	add	eax, ap_stack
 	mov	esp, eax
 
-	lgdt	[gdtdesc0]
+	movzx	eax, word [FIRSTSEGMENT_ADDR32 + GDTDESC*2]
+	lgdt	[eax + FIRSTSEGMENT_ADDR32]
 	mov	eax, 8
 
 	mov	ds, eax
@@ -115,29 +194,17 @@ ap_start32:
 
 	jmp	16:ap_start2
 ap_start2:
-	lidt	[idtdesc]
+	movzx	eax, word [FIRSTSEGMENT_ADDR32 + IDTDESC*2]
+	add	eax, FIRSTSEGMENT_ADDR32
+	lidt	[eax]
 	sti
-
 	call	cAP_main
 
 
 run_setup_e820:
-	; copy program to SETUP_START
-	mov	ecx, e820_setup_end
-	sub	ecx, e820_setup + E820_SETUP_START ; size of program
-	mov	edi, E820_SETUP_START_ADDR32
-	mov	esi, e820_setup + E820_SETUP_START
-
-	call	memcpy4
-
-	mov	eax, 24
-	mov	ds, eax
-	mov	es, eax
-	mov	fs, eax
-	mov	gs, eax
-	mov	ss, eax
-
-	jmp	32: E820_SETUP_START
+	movzx	ecx, word [FIRSTSEGMENT_ADDR32 + E820_SETUP]
+	add	ecx, FIRSTSEGMENT_ADDR32
+	jmp	ecx
 
 memcpy4:
 	; clobbered eax, edx
@@ -162,10 +229,19 @@ too_many_cpu_hlt:
 	hlt
 	jmp	too_many_cpu_hlt
 
+%include	"kernel/serial32.inc"
+
+puts:
+%include	"kernel/boot-puts.inc"
+
+	bits	64
+puts64:
+%include	"kernel/boot-puts.inc"
+
 %define	lo(x) (((x)-addr100000))
 %define	hi(x) (0x10)
 
-%define idt_entry(h) dw lo(h), 16, 0x8e00, hi(h)
+%define idt_entry(h) dw lo(h), 40, 0x8e01, hi(h), 0, 0, 0, 0
 
 	align	16
 idt:
@@ -208,28 +284,154 @@ idt:
 %assign vec vec+1
 %endrep
 
+%define	SAVE_REGS_OFFSET 16*16 + 8*16
+%macro	SAVE_REGS_NO_ERROR_CODE 0
+	sub	rsp, SAVE_REGS_OFFSET+8
+	call	save_regs
+%endmacro
+
+%macro	RESTORE_REGS_NO_ERROR_CODE 0
+	call	restore_regs
+	add	rsp, SAVE_REGS_OFFSET+8
+%endmacro
+
+
+%macro	SAVE_REGS_WITH_ERROR_CODE 0
+	sub	rsp, SAVE_REGS_OFFSET
+	call	save_regs
+%endmacro
+
+%macro	RESTORE_REGS_WITH_ERROR_CODE 0
+	call	restore_regs
+	add	rsp, SAVE_REGS_OFFSET+8
+%endmacro
+
+
+
+
+	;  +8 for align to 16
+	;
+	;  | xxxx    |
+	;  +---------+
+	;  | xxx     |
+	;  | ret     | <- rsp (in save_regs)
+	;  +---------+ <- rsp (in handler)
+	;  |save area|
+	;  |(384byte)|
+	;  +---------+ <- alignd to 16
+	;  |padding 8|
+	;  +---------+
+	;  |IA32e    |
+	;  |interrupt|
+	;  |stack    |
+	;  |frame    |
+	;  |(40byte) |
+	;  +---------+ <- IST (aligned to 16)
+	;  |         |
+
+save_regs:
+	mov	[rsp+8+0], rax
+	mov	[rsp+8+8*1], rbx
+	mov	[rsp+8+8*2], rcx
+	mov	[rsp+8+8*3], rdx
+	mov	[rsp+8+8*4], rsi
+	mov	[rsp+8+8*5], rdi
+	mov	[rsp+8+8*6], rbp
+;	mov	[rsp+8+8*7], 
+	mov	[rsp+8+8*8], r8
+	mov	[rsp+8+8*9], r9
+	mov	[rsp+8+8*10], r10
+	mov	[rsp+8+8*11], r11
+	mov	[rsp+8+8*12], r12
+	mov	[rsp+8+8*13], r13
+	mov	[rsp+8+8*14], r14
+	mov	[rsp+8+8*15], r15
+	movdqa	[rsp+8+128+16*0], xmm0
+	movdqa	[rsp+8+128+16*1], xmm1
+	movdqa	[rsp+8+128+16*2], xmm2
+	movdqa	[rsp+8+128+16*3], xmm3
+	movdqa	[rsp+8+128+16*4], xmm4
+	movdqa	[rsp+8+128+16*5], xmm5
+	movdqa	[rsp+8+128+16*6], xmm6
+	movdqa	[rsp+8+128+16*7], xmm7
+	movdqa	[rsp+8+128+16*8], xmm8
+	movdqa	[rsp+8+128+16*9], xmm9
+	movdqa	[rsp+8+128+16*10], xmm10
+	movdqa	[rsp+8+128+16*11], xmm11
+	movdqa	[rsp+8+128+16*12], xmm12
+	movdqa	[rsp+8+128+16*13], xmm13
+	movdqa	[rsp+8+128+16*14], xmm14
+	movdqa	[rsp+8+128+16*15], xmm15
+	ret
+
+restore_regs:
+	mov	rax, [rsp+8+0]
+	mov	rbx, [rsp+8+8*1]
+	mov	rcx, [rsp+8+8*2]
+	mov	rdx, [rsp+8+8*3]
+	mov	rsi, [rsp+8+8*4]
+	mov	rdi, [rsp+8+8*5]
+	mov	rbp, [rsp+8+8*6]
+;	mov	, [rsp+8*7]
+	mov	r8, [rsp+8+8*8]
+	mov	r9, [rsp+8+8*9]
+	mov	r10, [rsp+8+8*10]
+	mov	r11, [rsp+8+8*11]
+	mov	r12, [rsp+8+8*12]
+	mov	r13, [rsp+8+8*13]
+	mov	r14, [rsp+8+8*14]
+	mov	r15, [rsp+8+8*15]
+	movdqa	xmm0, [rsp+8+128+16*0]
+	movdqa	xmm1, [rsp+8+128+16*1]
+	movdqa	xmm2, [rsp+8+128+16*2]
+	movdqa	xmm3, [rsp+8+128+16*3]
+	movdqa	xmm4, [rsp+8+128+16*4]
+	movdqa	xmm5, [rsp+8+128+16*5]
+	movdqa	xmm6, [rsp+8+128+16*6]
+	movdqa	xmm7, [rsp+8+128+16*7]
+	movdqa	xmm8, [rsp+8+128+16*8]
+	movdqa	xmm9, [rsp+8+128+16*9]
+	movdqa	xmm10, [rsp+8+128+16*10]
+	movdqa	xmm11, [rsp+8+128+16*11]
+	movdqa	xmm12, [rsp+8+128+16*12]
+	movdqa	xmm13, [rsp+8+128+16*13]
+	movdqa	xmm14, [rsp+8+128+16*14]
+	movdqa	xmm15, [rsp+8+128+16*15]
+	ret
+
+
 %macro gen_handler 2
 %1:
 	extern %2
-	pushad
-	fxsave	[xsave_buffer]
+	SAVE_REGS_NO_ERROR_CODE
 	call	%2
-	popad
-	fxrstor	[xsave_buffer]
-	iretd
+	RESTORE_REGS_NO_ERROR_CODE
+	iretq
+%endmacro
+
+%macro	gen_handler_pass_regs_error_code 2
+%1:
+	extern %2
+	SAVE_REGS_WITH_ERROR_CODE
+	mov	rax, [SAVE_REGS_OFFSET + 32 + rsp] ; RSP
+	mov	[SAVE_REG_OFF_RSP + rsp], rax
+	lea	rdi, [rsp + SAVE_REGS_OFFSET] ; frame
+	mov	rsi, rsp ; saved regs
+	call	%2
+	RESTORE_REGS_WITH_ERROR_CODE
+	add	rsp, 8 ; error code
+	iretq
 %endmacro
 
 %macro gen_handler_code 3
 %1:
 	extern %2
-	pushad
-	fxsave	[xsave_buffer]
-	push	%3
+	SAVE_REGS_WITH_ERROR_CODE
+	mov	rdi, %3
 	call	%2
-	add	esp, 4
-	popad
-	fxrstor	[xsave_buffer]
-	iretd
+	RESTORE_REGS_WITH_ERROR_CODE
+	add	rsp, 8 ; error code
+	iretq
 %endmacro
 
 
@@ -259,8 +461,9 @@ idt:
 	gen_handler bound, cbound
 	gen_handler breakpoint, cbreakpoint
 	gen_handler segment_not_present, csegment_not_present
-	gen_handler stack_segment_fault, cstack_segment_fault
-	gen_handler page_fault, cpage_fault
+	gen_handler_pass_regs_error_code stack_segment_fault, cstack_segment_fault
+	gen_handler_pass_regs_error_code general_protection, cgeneral_protection
+	gen_handler_pass_regs_error_code page_fault, cpage_fault
 	gen_handler fp_error, cfp_error
 	gen_handler alignment_check, calignment_check
 	gen_handler machine_check, cmachine_check
@@ -272,103 +475,81 @@ idt:
 %assign vec vec+1
 %endrep
 
+	align	16
+idt_end:
 
-
-general_protection:
-	extern	cgeneral_protection
-	pushad
-	fxsave	[xsave_buffer]
-	call	cgeneral_protection
-	popad
-	fxrstor	[xsave_buffer]
-	add	esp, 4 ; errcode
-	iretd
+hello32:
+	db	`hello 32bit.\r\n\0`
+hello64:
+	db	`hello 64bit.\r\n\0`
 
 	SECTION .bss
-
 	align	16
 xsave_buffer:
 	resb	512
-
 stack:
 	resb	STACK_SIZE
-
 int_stack:
 	resb	STACK_SIZE
-
+int_stack_end:
 
 	global	have_too_many_cpus
 have_too_many_cpus:
 	resb	4
 
+	global	num_startup_2MB_page
+num_startup_2MB_page:
+	resb	4
+
+	; startup page = 16KB
+	alignb	4096
+kernel_address_space:
+startup_pml4:
+pml4:
+	resb	4096
+	alignb	4096
+startup_pdp:
+pdp:	resb	4096
+	alignb	4096
+startup_pdir:
+pdir:	resb	4096
+	alignb	4096
+startup_page_table:
+	resb	4096
+
+%define lo32(a) a
+%define hi32(a) 0
+
 	SECTION	.rodata
+
 	align	16
-gdt:
-	; limit 16
-	; base 16
-	;
-	; base 8(0-7)
-	; type 4(8-11)
-	; 1    1(12)
-	; dpl  2(13-14)
-	; p    1(15)
-	;
-	; limit 4(16-19)
-	; avl   1(20)
-	; l     1(21)
-	; d     1(22)
-	; g     1(23)
-	; base  8(24-31)
-
-	dw	0, 0
-	dd	0
-
-	; read write (8)
-	dw	0xffff, 0
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_RW32) | (0<<SEGDESC_DPL_SHIFT)
-
-	; exec read (16)
-	dw	0xffff, 0
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC) | (0<<SEGDESC_DPL_SHIFT)
-
-	; 24 : real data
-	dw	0xffff, FIRSTSEGMENT_ADDR32
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_RW16) | (0<<SEGDESC_DPL_SHIFT)
-
-	; 32 : real code
-	dw	0xffff, FIRSTSEGMENT_ADDR32
-	dd	(0xf<<SEGDESC_LIMIT_SHIFT) | (SEGDESC_EXEC16) | (0<<SEGDESC_DPL_SHIFT)
-
-%define	BASE_0_16(a) ((a)&0xffff)
-%define	BASE_16_23(a) (((a)>>23)&0xff)
-%define	BASE_24_31(a) (((a)>>24)&0xff)
-%define	BASE_32_64(a) (((a)>>32)&0xffffffff)
-
-	; 40,48 : tss64
-	
-
-idtdesc:
-	dw	8*256-1
-	dd	idt
-
-
-	align	8
-%if 0
 tss64:
 	dd	0		; reserved
-	dq	int_stack	; rsp0 (4)
-	dq	int_stack	; rsp1 (c)
-	dq	int_stack	; rsp2 (14)
+	dd	lo32(int_stack_end)	; rsp0 (4)
+	dd	hi32(int_stack_end)	; rsp0 (8)
+	dd	lo32(int_stack_end)	; rsp1 (c)
+	dd	hi32(int_stack_end)	; rsp1 (10)
+	dd	lo32(int_stack_end)	; rsp2 (14)
+	dd	hi32(int_stack_end)	; rsp2 (18)
 	dd	0		; reserved (1c)
 	dd	0		; reserved (20)
-	dq	int_stack	; ist1(24)
-	dq	0		; ist2(2c)
-	dq	0		; ist3(34)
-	dq	0		; ist4(3c)
-	dq	0		; ist5(44)
-	dq	0		; ist6(4c)
-	dq	0		; ist7(54)
+	dd	lo32(int_stack_end)	; ist1(24)
+	dd	hi32(int_stack_end)	; ist1(28)
+	dd	lo32(int_stack_end)	; ist2(2c)
+	dd	hi32(int_stack_end)	; ist2(30)
+	dd	lo32(int_stack_end)	; ist3(34)
+	dd	hi32(int_stack_end)	; ist3(38)
+	dd	lo32(int_stack_end)	; ist4(3c)
+	dd	hi32(int_stack_end)	; ist4(40)
+	dd	lo32(int_stack_end)	; ist5(44)
+	dd	hi32(int_stack_end)	; ist5(48)
+	dd	lo32(int_stack_end)	; ist6(4c)
+	dd	hi32(int_stack_end)	; ist6(50)
+	dd	lo32(int_stack_end)	; ist7(54)
+	dd	hi32(int_stack_end)	; ist7(58)
 	dd	0		; reserved(5c)
 	dd	0		; reserved(60)
 	dd	0		; reserved+iomap base(64)
-%endif
+
+	align	4
+tss64_end:

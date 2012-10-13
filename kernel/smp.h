@@ -2,6 +2,7 @@
 #define QO3_KERNEL_SMP_H
 #include "memmap.h"
 #include <stdint.h>
+#include "kernel/lapic.h"
 
 #define NUM_MAX_CPU 16
 
@@ -28,6 +29,12 @@ void ap_thread(int apic_id);
 
 typedef uint32_t ap_command_t;
 void post_command_to_ap(int apic_id, ap_command_t command);
+
+static inline unsigned int
+current_smpid(void)
+{
+	return (read_local_apic(LAPIC_ID)>>24);
+}
 
 #define AP_COMMAND_HELLO 1
 #define AP_COMMAND_RUN_BENCH 2

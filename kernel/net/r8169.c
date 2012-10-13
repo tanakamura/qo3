@@ -109,6 +109,10 @@ static void
 reset_state(struct r8169_dev *dev)
 {
 	int i;
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
 
 	w16(dev, InterruptMask, 0x0); /* disable all interrupt */
 	w16(dev, InterruptStatus, ~0); /* clear all interrupt */
@@ -129,6 +133,10 @@ reset_state(struct r8169_dev *dev)
 		dev->rx_desc[i*4 + 2] = 0; /* lo */
 		dev->rx_desc[i*4 + 3] = 0; /* hi */
 	}
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
 
 	dev->tx_desc[(R8169_NUM_BUFFER-1)*4] = EOR;
 	dev->rx_desc[(R8169_NUM_BUFFER-1)*4] = EOR;
@@ -165,9 +173,19 @@ reset_state(struct r8169_dev *dev)
 	wAddr(dev, RDSAR, (uintptr_t)dev->rx_desc);
 	wAddr(dev, TNPDS, (uintptr_t)dev->tx_desc);
 
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
+
 	w8(dev, Command, (1<<2)|(1<<3)); /* Tx Enable */
 	w16(dev, InterruptMask, 0xffef); /* enable all interrupt (RDU?) */
 	w8(dev, CR, 0x0);		 /* lock */
+
+	printf("%s:%d: 8169: %p\n",
+	       __FILE__,
+	       __LINE__,
+	       dev);
 }
 
 static enum irq_handle_status
@@ -197,7 +215,7 @@ r8169_irq(int irq, void *data)
 
 			w16(dev, InterruptStatus, (1<<2)); /* accept rx ok */
 
-			spinlock(dev->tx_lock); /* read tx_pos & OWN should be atomic */
+			spinlock(&dev->tx_lock); /* read tx_pos & OWN should be atomic */
 			lfence();
 			pos = dev->tx_pos;
 			while (own != pos) {
@@ -207,7 +225,7 @@ r8169_irq(int irq, void *data)
 				*ep[own] |= eb[own];
 				own = (own+1) & R8169_DESC_POS_MASK;
 			}
-			spinunlock(dev->tx_lock);
+			spinunlock(&dev->tx_lock);
 
 			dev->tx_own_pos = own;
 		}
@@ -222,7 +240,7 @@ r8169_irq(int irq, void *data)
 
 			w16(dev, InterruptStatus, 1); /* accept rx ok */
 
-			spinlock(dev->rx_lock);
+			spinlock(&dev->rx_lock);
 			lfence();
 			pos = dev->rx_pos;
 			while (own != pos) {
@@ -233,7 +251,7 @@ r8169_irq(int irq, void *data)
 				*ep[own] |= eb[own];
 				own = (own+1) & R8169_DESC_POS_MASK;
 			}
-			spinunlock(dev->rx_lock);
+			spinunlock(&dev->rx_lock);
 
 			/* read desc -> update own pos should not be reorderd */
 			mfence();
@@ -265,8 +283,6 @@ r8169_init(struct pci_root *pci,
 			    p[i].device_id == 0x8168) {
 				/* fixme 64 */
 				uint32_t memar = pci_conf_read32(p+i, 0x18);
-
-				printf("%x\n", (int)memar);
 				if (memar) {
 					base = memar & 0xffffff00;
 					if ((memar & 0xf3) == 0) {
@@ -308,6 +324,9 @@ r8169_init(struct pci_root *pci,
 	spinlock_init(&dev->rx_lock);
 
 	pci_irq_add(irq->irq[0], r8169_irq, dev);
+	pci_irq_add(irq->irq[1], r8169_irq, dev);
+	pci_irq_add(irq->irq[2], r8169_irq, dev);
+	pci_irq_add(irq->irq[3], r8169_irq, dev);
 
 	reset_state(dev);
 
@@ -357,10 +376,10 @@ r8169_tx_packet(struct r8169_dev *dev,
 	}
 
 	/* set desc + update pos should be atomic */
-	spinlock_and_disable_int_self(dev->tx_lock);
+	spinlock_and_disable_int_self(&dev->tx_lock);
 	d[0] = desc0;
 	dev->tx_pos = tx_pos;
-	spinunlock_and_enable_int_self(dev->rx_lock);
+	spinunlock_and_enable_int_self(&dev->rx_lock);
 
 	/* should not be reordered.
 	 * set OWN flag -> polling */
@@ -434,10 +453,10 @@ r8169_rx_packet(struct r8169_dev *dev,
 	}
 
 	/* set OWN & update rx_pos should be atomic */
-	spinlock_and_disable_int_self(dev->rx_lock);
+	spinlock_and_disable_int_self(&dev->rx_lock);
 	d[0] = desc0;
 	dev->rx_pos = rx_pos;
-	spinunlock_and_enable_int_self(dev->rx_lock);
+	spinunlock_and_enable_int_self(&dev->rx_lock);
 
 	w16(dev, InterruptStatus, 0x0010); /* clear RDU */
 

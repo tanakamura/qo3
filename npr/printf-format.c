@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdio.h>
 
 int
 npr_printf_build_format(struct npr_printf_format *f,

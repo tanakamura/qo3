@@ -1,0 +1,5 @@
+0-119      : gdt(120byte, 15 entry)
+120-127    : gdtdesc
+128-507    : e820 table(380byte, 19 entry)
+508-510    : num of e820 entry
+512-623    : tss64(112byte)

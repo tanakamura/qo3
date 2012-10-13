@@ -1,16 +1,20 @@
-#CC=/tools/bin/x86_64-linux-gnu-gcc
 CC=gcc
-AR=/tools/bin/x86_64-linux-gnu-ar
+OBJCOPY=objcopy
+NM=nm
+AR=ar
+
+ADDR_BITS=64
+
 all: do-it-all
 
 AS=nasm
-ASFLAGS=-felf32
+ASFLAGS=-felf$(ADDR_BITS) -O3
 CPPFLAGS=-D__QO3__=1
-COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m32 -Wno-unused-parameter -mssse3 -Os
+COMMON_CFLAGS=-Wall -g -Wextra -std=c99 -Werror -m$(ADDR_BITS) -Wno-unused-parameter -mssse3 -Os -fno-omit-frame-pointer -mmovbe
 INCLUDES=-I./
 CFLAGS=$(COMMON_CFLAGS) -g $(INCLUDES) -Os -fno-strict-aliasing
 CXXFLAGS=$(COMMON_CFLAGS)
-LDFLAGS=-nostdlib -m32 -Wl,-Ttext,100000 -lgcc -Wl,-Map,QO3.map -s
+LDFLAGS=-nostdlib -m$(ADDR_BITS) -Wl,-Ttext,100000 -lgcc -Wl,-Map,QO3.map -Wl,-z,max-page-size=4096 # -Wl,-T,kernel/QO3.ld -s
 
 export LANG=C
 DEPEND_INC=-I$(shell $(CC) --print-search-dirs | awk '/: \// {print $$2}' )include $(INCLUDES)
@@ -26,8 +30,8 @@ endif
 -include .depend
 
 first: submake
-	make -C . .depend
-	make -C . all
+	+make -C . .depend
+	+make -C . all
 
 dummy:
 
@@ -35,14 +39,17 @@ dummy:
 submake:
 	sh readmodule.sh > .submake.mk
 
-.depend: # $(ALL_GEN_SOURCES) 
+gen: $(ALL_GEN_SOURCES) 
+	touch gen
+
+.depend: gen
 	touch .depend
-	makedepend $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) -f.depend
+	@makedepend $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) -f.depend
 #gcc -MM -I. $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) $^ > $@
 
 redep: submake
 	rm -f .depend
-	make .depend
+	+make .depend
 
 clean:
 	rm -f .depend $(ALL_GEN_FILES) *~ .submake.mk .depend.bak

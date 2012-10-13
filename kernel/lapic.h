@@ -1,7 +1,6 @@
 #ifndef QO3_KERNEL_APIC_H
 #define QO3_KERNEL_APIC_H
 
-#include "smp.h"
 #include <stdint.h>
 
 #define LAPIC_BASE		0xfee00000

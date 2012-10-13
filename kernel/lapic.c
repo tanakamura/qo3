@@ -1,5 +1,6 @@
-#include "lapic.h"
-#include "qo3-acpi.h"
+#include "kernel/lapic.h"
+#include "kernel/qo3-acpi.h"
+#include "kernel/smp.h"
 
 struct apic_info apic_info;
 

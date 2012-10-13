@@ -4,6 +4,8 @@
 #include <ns16550.h>
 #include <stdio.h>
 #include "kernel/fatal.h"
+#include "acpi.h"
+
 
 #define BUFSIZE 256
 
