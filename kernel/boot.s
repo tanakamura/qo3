@@ -2,6 +2,10 @@
 	global	_start
 	global	generic_int
 	global	kernel_address_space
+	global	startup_pte
+	global	startup_pdir
+	global	startup_pdp
+	global	startup_pml4
 	extern	cmain
 	extern	cAP_main
 	extern	ap_stack
@@ -493,16 +497,25 @@ int_stack_end:
 have_too_many_cpus:
 	resb	4
 
+	global	num_startup_2MB_page
+num_startup_2MB_page:
+	resb	4
+
 	; startup page = 16KB
 	alignb	4096
 kernel_address_space:
-pml4:	resb	4096
+startup_pml4:
+pml4:
+	resb	4096
 	alignb	4096
+startup_pdp:
 pdp:	resb	4096
 	alignb	4096
+startup_pdir:
 pdir:	resb	4096
 	alignb	4096
-pte:	resb	4096
+startup_page_table:
+	resb	4096
 
 %define lo32(a) a
 %define hi32(a) 0

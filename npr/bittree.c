@@ -72,6 +72,65 @@ npr_bittree_set(struct npr_bittree *t,
 	p[0] |= 1L<<bit_pos;
 }
 
+int npr_bittree_p(struct npr_bittree *t,
+		  void *buffer,
+		  unsigned int idx)
+{
+	unsigned int l3_wordpos, l3_bitpos, l3_off;
+	npr_bittree_bits_t *p = (npr_bittree_bits_t*)buffer;
+
+	l3_off = t->offsets[1];
+
+	l3_bitpos = idx%BITTREE_WORD_NUM_BITS;
+	l3_wordpos = idx/BITTREE_WORD_NUM_BITS;
+
+	return p[l3_off + l3_wordpos] & ~(1L<<l3_bitpos);
+}
+
+
+void
+npr_bittree_clear(struct npr_bittree *t,
+		  void *buffer,
+		  unsigned idx)
+{
+	unsigned int l0_bitpos;
+	unsigned int l1_wordpos, l1_bitpos;
+	unsigned int l2_wordpos, l2_bitpos, l2_off;
+	unsigned int l3_wordpos, l3_bitpos, l3_off;
+
+	npr_bittree_bits_t b0, b1, b2, b3;
+	npr_bittree_bits_t *p = (npr_bittree_bits_t*)buffer;
+
+	NPR_STATIC_ASSERT(BITTREE_DEPTH == 4);
+
+	l2_off = t->offsets[0];
+	l3_off = t->offsets[1];
+
+	l3_bitpos = idx%BITTREE_WORD_NUM_BITS;
+	l3_wordpos = idx/BITTREE_WORD_NUM_BITS;
+
+	l2_wordpos = l3_wordpos/BITTREE_WORD_NUM_BITS;
+	l2_bitpos = l3_wordpos%BITTREE_WORD_NUM_BITS;
+
+	l1_wordpos = l2_wordpos/BITTREE_WORD_NUM_BITS;
+	l1_bitpos = l2_wordpos%BITTREE_WORD_NUM_BITS;
+
+	l0_bitpos = l1_wordpos%BITTREE_WORD_NUM_BITS;
+
+	b3 = p[l3_off + l3_wordpos] & ~(1L<<l3_bitpos);
+	p[l3_off + l3_wordpos] = b3;
+
+	b2 = p[l2_off + l2_wordpos] & ~(((npr_bittree_bits_t)(b3==0))<<l2_bitpos);
+	p[l2_off + l2_wordpos] = b2;
+
+	b1 = p[1 + l1_wordpos] & ~(((npr_bittree_bits_t)(b2==0))<<l1_bitpos);
+	p[1 + l1_wordpos] = b1;
+
+	b0 = p[0] & ~(((npr_bittree_bits_t)(b1==0))<<l0_bitpos);
+	p[0] = b0;
+}
+
+
 int
 npr_bittree_get(struct npr_bittree *t,
 		void *buffer)
@@ -81,7 +140,7 @@ npr_bittree_get(struct npr_bittree *t,
 	unsigned int l2_pos,l2_off;
 	unsigned int l3_pos,l3_off;
 	int ret;
-	int nb = BITTREE_WORD_NUM_BITS;
+	unsigned int nb = BITTREE_WORD_NUM_BITS;
 
 	npr_bittree_bits_t b0, b1, b2, b3;
 	npr_bittree_bits_t *p = (npr_bittree_bits_t*)buffer;

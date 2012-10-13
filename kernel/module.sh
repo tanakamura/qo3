@@ -11,7 +11,7 @@ x8664-page.c page.c
 
 AFTER_ALL_LIB=${mod_dir}/addr-table.o
 
-GENERATED="apboot16.o e820-setup.o firstsegment-const.h save-regs.h"
+GENERATED="apboot16.o e820-setup.o firstsegment.h save-regs.h boot-flags.h"
 
 tat=${mod_dir}/tmp-addr-table 
 at=${mod_dir}/addr-table
@@ -27,10 +27,9 @@ ${mod_dir}/apboot16.o: ${mod_dir}/apboot16.s
 ${mod_dir}/e820-setup.o: ${mod_dir}/e820-setup.s ${mod_dir}/firstsegment.inc
 	nasm -f bin -o \$@ \$<
 
-${mod_dir}/firstsegment-const.h: ${mod_dir}/firstsegment.inc
+${mod_dir}/%.h: ${mod_dir}/%.inc
 	sed s/%/#/g < \$< > \$@
-${mod_dir}/save-regs.h: ${mod_dir}/save-regs.inc
-	sed s/%/#/g < \$< > \$@
+
 
 ${mod_dir}/addr-table.o: ${at}
 

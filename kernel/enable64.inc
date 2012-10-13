@@ -56,6 +56,8 @@ init_pml4:
 	; ecx = ecx / 2M
 	shr	ecx, 21
 
+	mov	[num_startup_2MB_page], ecx
+
 	; ecx = number of page
 	mov	eax, 0x87
 

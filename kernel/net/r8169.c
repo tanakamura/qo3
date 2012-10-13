@@ -215,7 +215,7 @@ r8169_irq(int irq, void *data)
 
 			w16(dev, InterruptStatus, (1<<2)); /* accept rx ok */
 
-			spinlock(dev->tx_lock); /* read tx_pos & OWN should be atomic */
+			spinlock(&dev->tx_lock); /* read tx_pos & OWN should be atomic */
 			lfence();
 			pos = dev->tx_pos;
 			while (own != pos) {
@@ -225,7 +225,7 @@ r8169_irq(int irq, void *data)
 				*ep[own] |= eb[own];
 				own = (own+1) & R8169_DESC_POS_MASK;
 			}
-			spinunlock(dev->tx_lock);
+			spinunlock(&dev->tx_lock);
 
 			dev->tx_own_pos = own;
 		}
@@ -240,7 +240,7 @@ r8169_irq(int irq, void *data)
 
 			w16(dev, InterruptStatus, 1); /* accept rx ok */
 
-			spinlock(dev->rx_lock);
+			spinlock(&dev->rx_lock);
 			lfence();
 			pos = dev->rx_pos;
 			while (own != pos) {
@@ -251,7 +251,7 @@ r8169_irq(int irq, void *data)
 				*ep[own] |= eb[own];
 				own = (own+1) & R8169_DESC_POS_MASK;
 			}
-			spinunlock(dev->rx_lock);
+			spinunlock(&dev->rx_lock);
 
 			/* read desc -> update own pos should not be reorderd */
 			mfence();
@@ -376,10 +376,10 @@ r8169_tx_packet(struct r8169_dev *dev,
 	}
 
 	/* set desc + update pos should be atomic */
-	spinlock_and_disable_int_self(dev->tx_lock);
+	spinlock_and_disable_int_self(&dev->tx_lock);
 	d[0] = desc0;
 	dev->tx_pos = tx_pos;
-	spinunlock_and_enable_int_self(dev->rx_lock);
+	spinunlock_and_enable_int_self(&dev->rx_lock);
 
 	/* should not be reordered.
 	 * set OWN flag -> polling */
@@ -453,10 +453,10 @@ r8169_rx_packet(struct r8169_dev *dev,
 	}
 
 	/* set OWN & update rx_pos should be atomic */
-	spinlock_and_disable_int_self(dev->rx_lock);
+	spinlock_and_disable_int_self(&dev->rx_lock);
 	d[0] = desc0;
 	dev->rx_pos = rx_pos;
-	spinunlock_and_enable_int_self(dev->rx_lock);
+	spinunlock_and_enable_int_self(&dev->rx_lock);
 
 	w16(dev, InterruptStatus, 0x0010); /* clear RDU */
 

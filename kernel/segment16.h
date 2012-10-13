@@ -1,4 +1,4 @@
-#include "kernel/firstsegment-const.h"
+#include "kernel/firstsegment.h"
 
 static inline void *
 get_segment16_addr(int code)

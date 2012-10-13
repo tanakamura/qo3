@@ -15,8 +15,11 @@ main()
 	void *data;
 	struct npr_bittree tree;
 	int b, e;
+	int wordsize = sizeof(npr_bittree_bits_t);
 
-	assert(size == (3+4)*4);
+	printf("%d\n", size);
+	
+	assert(size == wordsize+wordsize+wordsize+128/8);
 
 	data = malloc(size);
 	npr_bittree_init(&tree, num_bits);
@@ -26,6 +29,24 @@ main()
 
 	npr_bittree_set_all(&tree, data, num_bits);
 
+	npr_bittree_dump(&tree, data, num_bits);
+	puts("");
+
+	npr_bittree_clear(&tree, data, 2);
+	npr_bittree_dump(&tree, data, num_bits);
+	puts("");
+
+	for (i=0; i<31; i++) {
+		npr_bittree_clear(&tree, data, i);
+	}
+	npr_bittree_dump(&tree, data, num_bits);
+	puts("");
+
+	npr_bittree_clear(&tree, data, 31);
+	npr_bittree_dump(&tree, data, num_bits);
+	puts("");
+
+	npr_bittree_set(&tree, data, 8);
 	npr_bittree_dump(&tree, data, num_bits);
 	puts("");
 

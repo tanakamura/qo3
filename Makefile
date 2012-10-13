@@ -1,11 +1,10 @@
-CC=/tools/bin/x86_64-linux-gnu-gcc
-OBJCOPY=/tools/bin/x86_64-linux-gnu-objcopy
-NM=/tools/bin/x86_64-linux-gnu-nm
-#CC=gcc
+CC=gcc
+OBJCOPY=objcopy
+NM=nm
+AR=ar
 
 ADDR_BITS=64
 
-AR=/tools/bin/x86_64-linux-gnu-ar
 all: do-it-all
 
 AS=nasm
@@ -45,7 +44,7 @@ gen: $(ALL_GEN_SOURCES)
 
 .depend: gen
 	touch .depend
-	makedepend $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) -f.depend
+	@makedepend $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) -f.depend
 #gcc -MM -I. $(DEPEND_INC) $(CPPFLAGS) $(ALL_SOURCES) $(ALL_GEN_SOURCES) $^ > $@
 
 redep: submake

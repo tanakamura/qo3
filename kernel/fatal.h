@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-void fatal();
+void fatal(void);
 
 #ifdef __cplusplus
 }

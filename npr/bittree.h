@@ -28,6 +28,14 @@ void npr_bittree_set(struct npr_bittree *t,
 		     void *buffer,
 		     unsigned int idx);
 
+void npr_bittree_clear(struct npr_bittree *t,
+		       void *buffer,
+		       unsigned int idx);
+
+int npr_bittree_p(struct npr_bittree *t,
+		  void *buffer,
+		  unsigned int idx);
+
 #define NPR_BITTREE_HAVE_BITS(buffer) ((*(npr_bittree_bits_t*)(buffer))!=0)
 
 void npr_bittree_set_all(struct npr_bittree *t,

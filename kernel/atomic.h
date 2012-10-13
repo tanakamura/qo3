@@ -1,37 +1,28 @@
 #ifndef QO3_KERNEL_ATOMIC_H
 #define QO3_KERNEL_ATOMIC_H
 
-typedef uintptr_t spinlock_t;
+typedef unsigned int atomic_t;
 
-/* todo : multi processor */
-static inline void
-spinlock_and_disable_int_self(spinlock_t lock)
+#ifdef __x86_64__
+typedef uint64_t atomic_pointer_flag_pair_flag_t;
+#endif
+
+
+struct __attribute__((aligned(16))) atomic_pointer_flag_pair {
+	atomic_pointer_flag_pair_flag_t flags;
+	void *ptr;
+};
+
+static inline int
+atomic_pointer_flag_pair_cas(struct atomic_pointer_flag_pair *val,
+			     atomic_pointer_flag_pair_flag_t old_flags,
+			     void *old_pointer,
+			     atomic_pointer_flag_pair_flag_t new_flags,
+			     void *new_pointer)
 {
-	__asm__ __volatile__ ("cli");
-}
-
-static inline void
-spinlock(spinlock_t lock)
-{
-	(void)lock;
-}
-
-
-static inline void
-spinunlock_and_enable_int_self(spinlock_t lock)
-{
-	__asm__ __volatile__ ("sti");
-}
-
-static inline void
-spinunlock(spinlock_t lock)
-{
-	(void)lock;
-}
-
-
-static inline void spinlock_init(spinlock_t *lock) {
-	*lock = 0;
+	asm volatile("lock cmpxcgh %3\n"
+		     :
+		     
 }
 
 #endif

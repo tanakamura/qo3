@@ -30,6 +30,11 @@ typedef unsigned char x86_page_table_t[4096];
 typedef pml4_table_t address_space_t;
 typedef pdp_table_t page_table_t;
 
+extern pml4_table_t startup_pml4;
+extern pdp_table_t startup_pdp;
+extern page_directory_t startup_pdir;
+extern x86_page_table_t startup_page_table;
+
 #define ALIGNOF_ADDRESS_SPACE 4096
 #define ALIGNOF_ADDRESS_SPACE_SHIFT 12
 #define SIZEOF_ADDRESS_SPACE 4096
@@ -60,9 +65,14 @@ struct arch_mm_entry_allocator {
 #define X86_MMU_ENTRY_SUPERVISOR (0<<2)
 
 #define NUM_PAGESIZE_LEVEL 3
-#define PAGESIZE_LEVEL0_SIZE 4096
-#define PAGESIZE_LEVEL1_SIZE (2048*1024)
-#define PAGESIZE_LEVEL2_SIZE (1*1024*1024*1024)
+#define PAGESIZE_LEVEL0_SIZE 4096U
+#define PAGESIZE_LEVEL0_SHIFT 12U
+
+#define PAGESIZE_LEVEL1_SIZE (2048U*1024U)
+#define PAGESIZE_LEVEL1_SHIFT 21U
+
+#define PAGESIZE_LEVEL2_SIZE (1U*1024U*1024U*1024U)
+#define PAGESIZE_LEVEL2_SHIFT 30
 
 /* PAT(7) + PWT(3) + PCD(4) */
 #define X86_PATINDEX_TO_MMU_ENTRY(x) ((((x)&3)<<3)|(((x)&4)<<5))

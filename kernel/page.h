@@ -2,8 +2,11 @@
 #define QO3_KERNEL_PAGE_H
 
 #include <stdint.h>
+#include "npr/bittree.h"
+
 #include "kernel/x8664-page.h"
-#include "npr/bitmap.h"
+#include "kernel/numa.h"
+#include "kernel/atomic.h"
 
 /* architecture independent page structure
  *
@@ -107,22 +110,39 @@ pa2va(pa_t pa)
 extern address_space_t kernel_address_space;
 
 struct mem_region {
+	spinlock_t alloc_page_lock;
+
 	pa_t begin;
 	pa_t end;
 
-	int num_all_page[NUM_PAGESIZE_LEVEL];
-	npr_bitmap_t allocated[NUM_PAGESIZE_LEVEL];
+	unsigned int num_all_page;
+	struct npr_bittree free_bits;
+	void *bittree_data;
 };
+
+static inline void
+lock_page_alloc(struct mem_region *r)
+{
+	spinlock_and_disable_int_self(&r->alloc_page_lock);
+}
+
+static inline void
+unlock_page_alloc(struct mem_region *r)
+{
+	spinunlock_and_enable_int_self(&r->alloc_page_lock);
+}
+
+#define MAX_MEM_REGION 1
 
 struct mem_node {
 	int num_region;
-	struct mem_region *regions;
+	struct mem_region regions[MAX_MEM_REGION];
 };
 
 #define MAX_NODE 1
 static const int num_node = MAX_NODE;
 
-struct mem_node nodes[MAX_NODE];
+extern struct mem_node mem_nodes[];
 
 #define DEFAULT_PAGESIZE_LEVEL 0
 
@@ -141,6 +161,15 @@ struct alloc_page_info {
 void alloc_page(struct alloc_page_info *result,
 		int node, int pagesize_level,
 		int num_alloc, int num_page_per_alloc, int align_shift);
+
+static inline void
+alloc_page_default(struct alloc_page_info *result,
+		   int num_alloc)
+{
+	alloc_page(result, current_nodeid(), DEFAULT_PAGESIZE_LEVEL,
+		   num_alloc, 1, 0);
+}
+
 void free_page(struct alloc_page_info *allocs, int num_alloc, int num_page_per_alloc);
 
 #endif
