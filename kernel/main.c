@@ -50,10 +50,10 @@ serial_gets(char *buffer, int buflen)
 		ns16550_read(&c, 1, &ready, (1<<0));
 		wait_event_any(&ready, (1<<0));
 
-		ns16550_write_poll(&c, 1);
+		putchar(c);
 
 		if (c == '\r') {
-			ns16550_write_poll("\n", 1);
+			putchar('\n');
 			break;
 		}
 		if (c == '\n') {
@@ -185,6 +185,18 @@ do_ltimer(void)
 	write_local_apic(LAPIC_DIVIDE, LAPIC_DIVIDE_1);
 	printf("value?> ");
 	val = read_int();
+	write_local_apic(LAPIC_INITIAL_COUNT, val);
+	write_local_apic(LAPIC_CURRENT_COUNT, val);
+
+	LAPIC_SET_LVT_TIMER(LAPIC_TIMER_MODE_PERIODIC, LAPIC_UNMASK);
+}
+
+static void
+do_ltimer_intr(void)
+{
+	int val;
+	write_local_apic(LAPIC_DIVIDE, LAPIC_DIVIDE_1);
+	val = 10000000;
 	write_local_apic(LAPIC_INITIAL_COUNT, val);
 	write_local_apic(LAPIC_CURRENT_COUNT, val);
 
@@ -745,6 +757,7 @@ cmain()
 		while (1) hlt();
 	}
 
+#ifndef BOCHS
 	setup_hpet_error = hpet_setup();
 	if (setup_hpet_error != HPET_SETUP_OK) {
 		puts("Setup hpet error. Assumes @ 0xfed00000");
@@ -772,13 +785,14 @@ cmain()
 	lspci(&pci_root0);
 	lspci_tree(&pci_root0);
 
+	/*
 	r = hda_init(&pci_root0, &hda_err);
 	if (r < 0) {
 		puts("hda init error");
 	}
+	*/
 
 	printf("link = %p, 8169 = %p\n", &tcpip_link, &r8169_dev);
-
 
 	r = r8169_init(&pci_root0, &r8169_dev, &r8169_err, 0);
 	if (r < 0) {
@@ -787,6 +801,7 @@ cmain()
 	}
 
 	printf("link = %p, 8169 = %p\n", &tcpip_link, &r8169_dev);
+#endif
 
 	/*
 	r = gma_init(&gma_error);
@@ -808,7 +823,7 @@ cmain()
 
 	ns16550_init_intr();
 
-	tcpip_init(&tcpip_link, r8169_dev.mac);
+	//tcpip_init(&tcpip_link, r8169_dev.mac);
 
 	while(1) {
 		int len;

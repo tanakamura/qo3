@@ -38,12 +38,10 @@ dump_inst(uintptr_t eip, uintptr_t cs)
 }
 
 void
-cinvalid_opcode(int edi, int esi, int ebp, int esp,
-		int ebx, int edx, int ecx, int eax,
-		int eip, int cs, int eflags)
+cinvalid_opcode(struct intr_regs *regs)
 {
-	dump_inst(eip, cs);
-	printf("invalid opcode: %x, %x\n", eip, cs);
+	dump_inst(regs->rip, regs->cs);
+	printf("invalid opcode: %p, %x\n", (int*)regs->rip, regs->cs);
 	printf("cr0 = %08x\n", get_cr0());
 	fatal();
 }

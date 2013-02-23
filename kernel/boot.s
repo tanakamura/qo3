@@ -359,22 +359,22 @@ save_regs:
 	mov	[rsp+8+8*13], r13
 	mov	[rsp+8+8*14], r14
 	mov	[rsp+8+8*15], r15
-	movdqa	[rsp+8+128+16*0], xmm0
-	movdqa	[rsp+8+128+16*1], xmm1
-	movdqa	[rsp+8+128+16*2], xmm2
-	movdqa	[rsp+8+128+16*3], xmm3
-	movdqa	[rsp+8+128+16*4], xmm4
-	movdqa	[rsp+8+128+16*5], xmm5
-	movdqa	[rsp+8+128+16*6], xmm6
-	movdqa	[rsp+8+128+16*7], xmm7
-	movdqa	[rsp+8+128+16*8], xmm8
-	movdqa	[rsp+8+128+16*9], xmm9
-	movdqa	[rsp+8+128+16*10], xmm10
-	movdqa	[rsp+8+128+16*11], xmm11
-	movdqa	[rsp+8+128+16*12], xmm12
-	movdqa	[rsp+8+128+16*13], xmm13
-	movdqa	[rsp+8+128+16*14], xmm14
-	movdqa	[rsp+8+128+16*15], xmm15
+	movdqu	[rsp+8+128+16*0], xmm0
+	movdqu	[rsp+8+128+16*1], xmm1
+	movdqu	[rsp+8+128+16*2], xmm2
+	movdqu	[rsp+8+128+16*3], xmm3
+	movdqu	[rsp+8+128+16*4], xmm4
+	movdqu	[rsp+8+128+16*5], xmm5
+	movdqu	[rsp+8+128+16*6], xmm6
+	movdqu	[rsp+8+128+16*7], xmm7
+	movdqu	[rsp+8+128+16*8], xmm8
+	movdqu	[rsp+8+128+16*9], xmm9
+	movdqu	[rsp+8+128+16*10], xmm10
+	movdqu	[rsp+8+128+16*11], xmm11
+	movdqu	[rsp+8+128+16*12], xmm12
+	movdqu	[rsp+8+128+16*13], xmm13
+	movdqu	[rsp+8+128+16*14], xmm14
+	movdqu	[rsp+8+128+16*15], xmm15
 	ret
 
 restore_regs:
@@ -394,22 +394,22 @@ restore_regs:
 	mov	r13, [rsp+8+8*13]
 	mov	r14, [rsp+8+8*14]
 	mov	r15, [rsp+8+8*15]
-	movdqa	xmm0, [rsp+8+128+16*0]
-	movdqa	xmm1, [rsp+8+128+16*1]
-	movdqa	xmm2, [rsp+8+128+16*2]
-	movdqa	xmm3, [rsp+8+128+16*3]
-	movdqa	xmm4, [rsp+8+128+16*4]
-	movdqa	xmm5, [rsp+8+128+16*5]
-	movdqa	xmm6, [rsp+8+128+16*6]
-	movdqa	xmm7, [rsp+8+128+16*7]
-	movdqa	xmm8, [rsp+8+128+16*8]
-	movdqa	xmm9, [rsp+8+128+16*9]
-	movdqa	xmm10, [rsp+8+128+16*10]
-	movdqa	xmm11, [rsp+8+128+16*11]
-	movdqa	xmm12, [rsp+8+128+16*12]
-	movdqa	xmm13, [rsp+8+128+16*13]
-	movdqa	xmm14, [rsp+8+128+16*14]
-	movdqa	xmm15, [rsp+8+128+16*15]
+	movdqu	xmm0, [rsp+8+128+16*0]
+	movdqu	xmm1, [rsp+8+128+16*1]
+	movdqu	xmm2, [rsp+8+128+16*2]
+	movdqu	xmm3, [rsp+8+128+16*3]
+	movdqu	xmm4, [rsp+8+128+16*4]
+	movdqu	xmm5, [rsp+8+128+16*5]
+	movdqu	xmm6, [rsp+8+128+16*6]
+	movdqu	xmm7, [rsp+8+128+16*7]
+	movdqu	xmm8, [rsp+8+128+16*8]
+	movdqu	xmm9, [rsp+8+128+16*9]
+	movdqu	xmm10, [rsp+8+128+16*10]
+	movdqu	xmm11, [rsp+8+128+16*11]
+	movdqu	xmm12, [rsp+8+128+16*12]
+	movdqu	xmm13, [rsp+8+128+16*13]
+	movdqu	xmm14, [rsp+8+128+16*14]
+	movdqu	xmm15, [rsp+8+128+16*15]
 	ret
 
 
@@ -417,6 +417,7 @@ restore_regs:
 %1:
 	extern %2
 	SAVE_REGS_NO_ERROR_CODE
+	lea	rdi, [rsp + 8]
 	call	%2
 	RESTORE_REGS_NO_ERROR_CODE
 	iretq
@@ -432,18 +433,16 @@ restore_regs:
 	mov	rsi, rsp ; saved regs
 	call	%2
 	RESTORE_REGS_WITH_ERROR_CODE
-	add	rsp, 8 ; error code
 	iretq
 %endmacro
 
 %macro gen_handler_code 3
 %1:
 	extern %2
-	SAVE_REGS_WITH_ERROR_CODE
+	SAVE_REGS_NO_ERROR_CODE
 	mov	rdi, %3
 	call	%2
-	RESTORE_REGS_WITH_ERROR_CODE
-	add	rsp, 8 ; error code
+	RESTORE_REGS_NO_ERROR_CODE
 	iretq
 %endmacro
 

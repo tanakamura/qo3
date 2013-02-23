@@ -61,6 +61,8 @@ ns16550_init(void)
 	outb(PORT+REG_LCR, LCR_WLS_8|LCR_STB2);
 	outb(PORT+REG_FCR, FCR_FIFO_ENABLE|FCR_RESET_RCVR|FCR_RESET_XMIT);
 
+	outb(PORT+REG_MCR, 0xc);
+
 	/* set baud rate (115200) */
 	outb(PORT+REG_LCR, LCR_DLAB);
 	outb(PORT+REG_DLL, 0x01);
@@ -181,6 +183,7 @@ cns16550_intr(void)
 {
 	int ier;
 	unsigned char c;
+
 	while (inb(PORT+REG_LSR) & LSR_DR) {
 		eieio();
 		c = inb(PORT+REG_RBR);
