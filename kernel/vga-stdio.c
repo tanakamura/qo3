@@ -20,6 +20,8 @@ vga_write_str(const char *str, int len)
 			con_x++;
 			if (con_x >= 80) {
 				con_y++;
+				if (con_y >= 25)
+					con_y = 0;
 				con_x=0;
 			}
 		}
@@ -35,4 +37,12 @@ vga_puts(const char *str)
 	vga_write_str(crlf, 1);
 
 	return len+2;
+}
+
+int
+vga_putchar(int c)
+{
+	char b = c;
+	vga_write_str(&b, 1);
+	return c;
 }

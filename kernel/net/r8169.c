@@ -376,10 +376,10 @@ r8169_tx_packet(struct r8169_dev *dev,
 	}
 
 	/* set desc + update pos should be atomic */
-	spinlock_and_disable_int_self(&dev->tx_lock);
+	eflags_t f = spinlock_and_disable_int_local(&dev->tx_lock);
 	d[0] = desc0;
 	dev->tx_pos = tx_pos;
-	spinunlock_and_enable_int_self(&dev->rx_lock);
+	spinunlock_and_restore_int_local(&dev->rx_lock, f);
 
 	/* should not be reordered.
 	 * set OWN flag -> polling */
@@ -453,10 +453,10 @@ r8169_rx_packet(struct r8169_dev *dev,
 	}
 
 	/* set OWN & update rx_pos should be atomic */
-	spinlock_and_disable_int_self(&dev->rx_lock);
+	eflags_t fl = spinlock_and_disable_int_local(&dev->rx_lock);
 	d[0] = desc0;
 	dev->rx_pos = rx_pos;
-	spinunlock_and_enable_int_self(&dev->rx_lock);
+	spinunlock_and_restore_int_local(&dev->rx_lock, fl);
 
 	w16(dev, InterruptStatus, 0x0010); /* clear RDU */
 

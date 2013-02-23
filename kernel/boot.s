@@ -1,3 +1,9 @@
+	; -*- asm -*-
+	; pml4 = 2^39 = 512G/entry
+	; pdp  = 2^30 = 1G/entry
+	; pd   = 2^21 = 2M/entry
+	; pt   = 2^12 = 4K/entry
+
 	SECTION .text
 	global	_start
 	global	generic_int
@@ -137,15 +143,20 @@ start3:
 
 	bits	64
 start64:
-	mov	esi, hello64
-	call	puts64
-
 	mov	rax, 64
 	mov	ds, eax
 	mov	es, eax
 	mov	fs, eax
 	mov	gs, eax
 	mov	ss, eax
+
+	mov	rax, clearcs64
+	jmp	rax
+	nop
+clearcs64:
+
+	mov	esi, hello64
+	call	puts64
 
 	mov	eax, 48
 	ltr	ax
@@ -157,12 +168,14 @@ start64:
 
 	bits	32
 
+	; esi addr
+	; ecx clobbered
 clear_table:
 	xor	ecx, ecx
 .loop:
-	mov	dword [8*ecx + esi], 0;
+	mov	dword [4*ecx + esi], 0;
 	add	ecx, 1
-	cmp	ecx, 512
+	cmp	ecx, 1024
 	jne	.loop
 
 	ret
@@ -504,17 +517,17 @@ num_startup_2MB_page:
 	; startup page = 16KB
 	alignb	4096
 kernel_address_space:
-startup_pml4:
+startup_pml4:			;512G/entry
 pml4:
 	resb	4096
 	alignb	4096
-startup_pdp:
+startup_pdp:			;1G/entry
 pdp:	resb	4096
 	alignb	4096
-startup_pdir:
-pdir:	resb	4096
+startup_pdir:			;2M/entry
+pdir:	resb	4096*64
 	alignb	4096
-startup_page_table:
+startup_page_table:		;4KB/entry
 	resb	4096
 
 %define lo32(a) a

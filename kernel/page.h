@@ -120,16 +120,16 @@ struct mem_region {
 	void *bittree_data;
 };
 
-static inline void
+static inline eflags_t
 lock_page_alloc(struct mem_region *r)
 {
-	spinlock_and_disable_int_self(&r->alloc_page_lock);
+	return spinlock_and_disable_int_local(&r->alloc_page_lock);
 }
 
 static inline void
-unlock_page_alloc(struct mem_region *r)
+unlock_page_alloc(struct mem_region *r, eflags_t flags)
 {
-	spinunlock_and_enable_int_self(&r->alloc_page_lock);
+	spinunlock_and_restore_int_local(&r->alloc_page_lock, flags);
 }
 
 #define MAX_MEM_REGION 1

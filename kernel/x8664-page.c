@@ -5,7 +5,6 @@
 #include "npr/align.h"
 
 #include "kernel/x8664-page.h"
-#include "kernel/boot-flags.h"
 #include "kernel/segment16.h"
 #include "kernel/page.h"
 #include "kernel/fatal.h"

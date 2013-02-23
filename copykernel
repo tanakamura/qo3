@@ -1,4 +1,5 @@
 #!/bin/sh
+make
 sudo mount -o loop hda image
 sudo rm -f image/QO3
 sudo cp -L QO3 image/qo3

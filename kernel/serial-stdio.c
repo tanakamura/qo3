@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "kernel/fatal.h"
 #include "acpi.h"
+#include "vga.h"
 
 
 #define BUFSIZE 256
@@ -51,6 +52,7 @@ vprintf(const char *format,
 	}
 
 	ns16550_write_text_poll(buffer, out_size);
+	vga_write_str(buffer, out_size);
 
 	return out_size;
 }
@@ -65,6 +67,8 @@ puts(const char *str)
 	ns16550_write_poll(str, len);
 	ns16550_write_poll(crlf, 2);
 
+	vga_puts(str);
+
 	return len+2;
 }
 
@@ -74,6 +78,7 @@ putchar(int c)
 	char buf[1];
 	buf[0] = c;
 	ns16550_write_poll(buf, 1);
+	vga_putchar(c);
 
 	return c;
 }

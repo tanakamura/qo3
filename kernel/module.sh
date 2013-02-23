@@ -11,7 +11,7 @@ x8664-page.c page.c
 
 AFTER_ALL_LIB=${mod_dir}/addr-table.o
 
-GENERATED="apboot16.o e820-setup.o firstsegment.h save-regs.h boot-flags.h"
+GENERATED="apboot16.o e820-setup.o firstsegment.h save-regs.h"
 
 tat=${mod_dir}/tmp-addr-table 
 at=${mod_dir}/addr-table
