@@ -1,0 +1,5 @@
+
+最初のELFの .text, .bss, .data, .rodata が先頭に入ってる。
+これのサイズ2MBにくりあげられてが num_startup_2MB_page。
+
+まあ多分2MB以上に対応してないので
